@@ -1,0 +1,2203 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#3b82f6">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="PBJT">
+    <title>Kartu Kontrol PBJT</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/svg+xml" href="https://cdn.jsdelivr.net/npm/@mdi/svg@7.2.96/svg/clipboard-text.svg">
+    <link rel="apple-touch-icon" href="https://cdn.jsdelivr.net/npm/@mdi/svg@7.2.96/svg/clipboard-text.svg">
+    
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        * { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+        body { font-family: 'Inter', sans-serif; overscroll-behavior: none; padding-bottom: env(safe-area-inset-bottom); }
+        .safe-top { padding-top: max(12px, env(safe-area-inset-top)); }
+        .safe-bottom { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid #e5e7eb; padding-bottom: max(16px, env(safe-area-inset-bottom)); z-index: 50; }
+        .nav-item.active { color: #3b82f6; }
+        .nav-item.active .nav-indicator { transform: scaleX(1); }
+        .nav-indicator { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%) scaleX(0); width: 24px; height: 3px; background: #3b82f6; border-radius: 3px 3px 0 0; transition: transform 0.2s ease; }
+        .status-lunas { background: linear-gradient(135deg, #d1fae5, #a7f3d0); color: #065f46; }
+        .status-belum { background: linear-gradient(135deg, #fef3c7, #fde68a); color: #92400e; }
+        .status-janji { background: linear-gradient(135deg, #dbeafe, #bfdbfe); color: #1e40af; }
+        .status-tunggakan { background: linear-gradient(135deg, #fee2e2, #fecaca); color: #991b1b; }
+        .card { background: white; border-radius: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden; }
+        .fab { position: fixed; bottom: calc(80px + env(safe-area-inset-bottom)); right: 16px; width: 56px; height: 56px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border-radius: 16px; display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4); z-index: 40; transition: transform 0.2s ease; }
+        .fab:active { transform: scale(0.95); }
+        .modal { transition: opacity 0.3s ease; }
+        .modal-content { transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .modal.active .modal-content { transform: translateY(0); }
+        .signature-pad { border: 2px dashed #cbd5e1; border-radius: 12px; touch-action: none; cursor: crosshair; background: #f8fafc; }
+        .photo-preview { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; border: 3px solid #e5e7eb; }
+        @media print { .no-print { display: none !important; } .print-only { display: block !important; } body { background: white; } .print-container { box-shadow: none !important; border: none !important; } @page { size: A4 landscape; margin: 8mm; } }
+        .print-only { display: none; }
+        .smooth-scroll { scroll-behavior: smooth; -webkit-overflow-scrolling: touch; }
+        .touch-feedback { transition: background-color 0.15s ease; }
+        .touch-feedback:active { background-color: #f1f5f9; }
+        .badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; background: #ef4444; color: white; font-size: 11px; font-weight: 600; border-radius: 9px; display: flex; align-items: center; justify-content: center; padding: 0 5px; }
+        .page-section { display: none; animation: fadeIn 0.2s ease; }
+        .page-section.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinning { animation: spin 1s linear infinite; }
+        .stat-gradient-blue { background: linear-gradient(135deg, #3b82f6, #1d4ed8); }
+        .stat-gradient-green { background: linear-gradient(135deg, #22c55e, #16a34a); }
+        .stat-gradient-yellow { background: linear-gradient(135deg, #f59e0b, #d97706); }
+        .stat-gradient-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+        .stat-gradient-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+        .pull-to-refresh { position: relative; overflow: hidden; }
+        .pull-indicator { position: absolute; top: -60px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; justify-content: center; height: 50px; transition: top 0.2s ease; }
+        .pull-indicator.visible { top: 10px; }
+        .loading-spinner { width: 24px; height: 24px; border: 3px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        .offline-indicator { display: none; }
+        .offline-indicator.show { display: flex; }
+        .sync-status { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; }
+        .sync-status.synced { color: #22c55e; }
+        .sync-status.syncing { color: #3b82f6; }
+        .sync-status.error { color: #ef4444; }
+        .sync-status.pending { color: #f59e0b; }
+        
+        /* Login Page Styles */
+        .login-bg { background: linear-gradient(135deg, #3b82f6 0%, #1e40af 50%, #1e3a8a 100%); }
+        .login-card { backdrop-filter: blur(20px); background: rgba(255, 255, 255, 0.95); }
+        .login-input { transition: all 0.3s ease; }
+        .login-input:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .btn-login { background: linear-gradient(135deg, #3b82f6, #1d4ed8); transition: all 0.3s ease; }
+        .btn-login:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(59, 130, 246, 0.3); }
+        .btn-login:active { transform: translateY(0); }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+    <!-- Login Page -->
+    <div id="login-page" class="login-bg min-h-screen flex items-center justify-center p-4">
+        <div class="w-full max-w-sm">
+            <div class="text-center mb-8">
+                <div class="w-20 h-20 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+                    <i class="ri-clipboard-text-fill text-blue-600 text-4xl"></i>
+                </div>
+                <h1 class="text-2xl font-bold text-white">Kartu Kontrol PBJT</h1>
+                <p class="text-blue-200 text-sm mt-1">Sistem Pemungutan Pajak Restoran</p>
+            </div>
+            
+            <div class="login-card rounded-3xl p-6 shadow-2xl">
+                <form id="login-form" class="space-y-4">
+                    <div>
+                        <label class="text-sm text-gray-600 mb-1 block">Username / NIP</label>
+                        <div class="relative">
+                            <i class="ri-user-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="text" id="login-username" required class="login-input w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:outline-none" placeholder="Masukkan username atau NIP">
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="text-sm text-gray-600 mb-1 block">Password</label>
+                        <div class="relative">
+                            <i class="ri-lock-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                            <input type="password" id="login-password" required class="login-input w-full pl-10 pr-12 py-3 border border-gray-200 rounded-xl focus:outline-none" placeholder="Masukkan password">
+                            <button type="button" onclick="togglePassword()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                <i class="ri-eye-line" id="password-toggle-icon"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between text-sm">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" id="remember-me" class="w-4 h-4 text-blue-500 rounded">
+                            <span class="text-gray-600">Ingat saya</span>
+                        </label>
+                    </div>
+                    
+                    <button type="submit" class="btn-login w-full py-3 rounded-xl text-white font-semibold shadow-lg">
+                        <i class="ri-login-circle-line mr-2"></i> Masuk
+                    </button>
+                </form>
+                
+                <div class="mt-6 pt-6 border-t border-gray-100 text-center">
+                    <button onclick="openModal('forgot-password')" class="text-blue-600 text-sm hover:underline">
+                        Lupa Password?
+                    </button>
+                </div>
+                
+                <div class="mt-4 p-3 bg-blue-50 rounded-xl">
+                    <p class="text-xs text-blue-800 text-center">
+                        <i class="ri-information-line mr-1"></i>
+                        Default: admin / admin123
+                    </p>
+                </div>
+            </div>
+            
+            <p class="text-center text-blue-200 text-xs mt-6">
+                © 2024 Pemerintah Daerah<br>v2.0 - Sistem PBJT
+            </p>
+        </div>
+    </div>
+
+    <!-- Main App Container (Hidden until login) -->
+    <div id="app-container" class="hidden max-w-lg mx-auto bg-gray-100 min-h-screen relative pb-24 pull-to-refresh">
+        
+        <!-- Pull to Refresh Indicator -->
+        <div class="pull-indicator" id="pull-indicator">
+            <i class="ri-refresh-line text-gray-400 text-xl" id="pull-icon"></i>
+        </div>
+        
+        <!-- Header -->
+        <header class="bg-white shadow-sm safe-top sticky top-0 z-30 no-print">
+            <div class="px-4 py-3">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h1 class="text-xl font-bold text-gray-800" id="page-title">Dashboard</h1>
+                        <p class="text-xs text-gray-500" id="current-date"></p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openModal('petugas-select')" class="w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center touch-feedback relative">
+                            <i class="ri-user-settings-line text-gray-600 text-xl"></i>
+                        </button>
+                        <button onclick="openModal('export')" class="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center touch-feedback">
+                            <i class="ri-download-line text-green-600 text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="px-4 py-4 smooth-scroll">
+            
+            <!-- Dashboard Section -->
+            <section id="section-dashboard" class="page-section active">
+                <!-- User Card -->
+                <div class="stat-gradient-blue rounded-2xl p-4 mb-4 text-white shadow-lg">
+                    <div class="flex items-center gap-3">
+                        <div class="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center">
+                            <i class="ri-user-tie-line text-2xl"></i>
+                        </div>
+                        <div class="flex-1">
+                            <p class="text-blue-100 text-xs">Login sebagai</p>
+                            <h3 class="text-lg font-bold" id="user-name">-</h3>
+                            <p class="text-blue-100 text-xs" id="user-role">-</p>
+                        </div>
+                        <button onclick="logout()" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                            <i class="ri-logout-box-line text-xl"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Petugas Card -->
+                <div class="bg-white rounded-2xl p-4 mb-4 shadow-sm">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
+                                <i class="ri-user-star-line text-green-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Petugas Aktif</p>
+                                <h3 class="font-bold text-gray-800" id="active-petugas-nama">-</h3>
+                                <p class="text-xs text-gray-500">NIP: <span id="active-petugas-nip">-</span></p>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end gap-1">
+                            <div class="sync-status" id="header-sync-status">
+                                <i class="ri-cloud-line text-xl"></i>
+                            </div>
+                            <button onclick="manualSync()" class="w-6 h-6 bg-gray-100 rounded-full flex items-center justify-center">
+                                <i class="ri-refresh-line text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Stats -->
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div class="bg-white rounded-xl p-4 shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
+                                <i class="ri-calendar-check-line text-blue-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Hari Ini</p>
+                                <h3 class="text-xl font-bold text-gray-800" id="stat-hari-ini">0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
+                                <i class="ri-money-dollar-circle-line text-green-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Pajak Hari</p>
+                                <h3 class="text-sm font-bold text-gray-800" id="stat-pajak-hari">Rp 0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-yellow-100 rounded-xl flex items-center justify-center">
+                                <i class="ri-calendar-line text-yellow-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Bulan Ini</p>
+                                <h3 class="text-sm font-bold text-gray-800" id="stat-bulan">Rp 0</h3>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-white rounded-xl p-4 shadow-sm">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center">
+                                <i class="ri-alarm-warning-line text-red-600 text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-xs text-gray-500">Tunggakan</p>
+                                <h3 class="text-sm font-bold text-red-600" id="stat-tunggakan">Rp 0</h3>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="grid grid-cols-3 gap-3 mb-4">
+                    <button onclick="createNewKartuKontrol()" class="card p-3 touch-feedback text-center">
+                        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+                            <i class="ri-add-circle-line text-blue-600 text-2xl"></i>
+                        </div>
+                        <p class="text-xs font-medium text-gray-700">Buat Baru</p>
+                    </button>
+                    <button onclick="showSection('kartu')" class="card p-3 touch-feedback text-center">
+                        <div class="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+                            <i class="ri-clipboard-line text-green-600 text-2xl"></i>
+                        </div>
+                        <p class="text-xs font-medium text-gray-700">Kartu Kontrol</p>
+                    </button>
+                    <button onclick="showSection('riwayat')" class="card p-3 touch-feedback text-center">
+                        <div class="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center mx-auto mb-2">
+                            <i class="ri-printer-line text-purple-600 text-2xl"></i>
+                        </div>
+                        <p class="text-xs font-medium text-gray-700">Laporan</p>
+                    </button>
+                </div>
+
+                <!-- Today's Collection -->
+                <div class="card mb-4">
+                    <div class="p-4 border-b flex justify-between items-center">
+                        <h3 class="font-semibold text-gray-800">Pemungutan Hari Ini</h3>
+                        <span class="text-xs text-gray-500" id="today-count">0 objek</span>
+                    </div>
+                    <div class="divide-y max-h-64 overflow-y-auto" id="today-collection">
+                        <p class="text-gray-400 text-center py-8 text-sm">Belum ada pemungutan</p>
+                    </div>
+                </div>
+
+                <!-- Chart -->
+                <div class="card p-4">
+                    <h3 class="font-semibold text-gray-800 mb-3">Grafik 7 Hari</h3>
+                    <canvas id="chartPajak" height="150"></canvas>
+                </div>
+            </section>
+
+            <!-- Kartu Kontrol Section -->
+            <section id="section-kartu" class="page-section">
+                <div class="bg-white rounded-xl p-4 shadow-sm mb-4 flex gap-2">
+                    <div class="flex-1">
+                        <input type="date" id="filter-tanggal" class="w-full px-3 py-2 border rounded-lg text-sm" onchange="loadKartuKontrol()">
+                    </div>
+                    <button onclick="createNewKartuKontrol()" class="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                        <i class="ri-add-line mr-1"></i> Baru
+                    </button>
+                </div>
+
+                <div id="kartu-info" class="bg-blue-50 rounded-xl p-4 mb-4 hidden">
+                    <div class="flex justify-between items-center mb-2">
+                        <div>
+                            <p class="text-xs text-blue-600">No. Kartu</p>
+                            <p class="font-bold text-blue-800" id="info-no-kartu">-</p>
+                        </div>
+                        <div class="text-right">
+                            <span class="px-3 py-1 rounded-full text-xs font-medium" id="info-status">-</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        <p><span class="text-gray-500">Petugas:</span> <span id="info-petugas">-</span></p>
+                        <p><span class="text-gray-500">Jam:</span> <span id="info-jam">-</span></p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="p-4 border-b">
+                        <h3 class="font-semibold text-gray-800">Daftar Objek</h3>
+                    </div>
+                    <div class="divide-y" id="table-kartu">
+                        <p class="text-gray-400 text-center py-8 text-sm">Pilih tanggal atau buat kartu baru</p>
+                    </div>
+                </div>
+
+                <div id="kartu-summary" class="mt-4 bg-green-50 rounded-xl p-4 hidden">
+                    <div class="grid grid-cols-3 gap-2 text-center">
+                        <div>
+                            <p class="text-xs text-gray-500">Objek</p>
+                            <p class="text-xl font-bold text-gray-800" id="summary-jumlah">0</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Dibayar</p>
+                            <p class="text-sm font-bold text-green-600" id="summary-dibayar">Rp 0</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Tunggakan</p>
+                            <p class="text-sm font-bold text-red-600" id="summary-tunggakan">Rp 0</p>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="text-xs text-gray-600">Jam Selesai</label>
+                        <input type="time" id="summary-jam" class="w-full px-3 py-2 border rounded-lg text-sm bg-white" onchange="saveJamSelesai()">
+                    </div>
+                </div>
+
+                <div id="print-section" class="mt-4 hidden">
+                    <button onclick="printKartuKontrol()" class="w-full bg-blue-500 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 touch-feedback">
+                        <i class="ri-printer-line text-xl"></i> Cetak Kartu Kontrol
+                    </button>
+                </div>
+            </section>
+
+            <!-- Tunggakan Section -->
+            <section id="section-tunggakan" class="page-section">
+                <div class="card">
+                    <div class="p-4 border-b flex justify-between items-center">
+                        <h3 class="font-semibold text-gray-800">Daftar Tunggakan</h3>
+                        <span class="text-xs text-gray-500" id="tunggakan-count">0 item</span>
+                    </div>
+                    <div class="divide-y" id="table-tunggakan">
+                        <p class="text-gray-400 text-center py-8 text-sm">Tidak ada tunggakan</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Riwayat Section -->
+            <section id="section-riwayat" class="page-section">
+                <div class="card">
+                    <div class="p-4 border-b flex justify-between items-center">
+                        <h3 class="font-semibold text-gray-800">Riwayat Kartu Kontrol</h3>
+                        <select id="filter-riwayat" class="text-xs border rounded-lg px-2 py-1" onchange="loadRiwayat()">
+                            <option value="all">Semua</option>
+                            <option value="month">Bulan Ini</option>
+                            <option value="last_month">Bulan Lalu</option>
+                        </select>
+                    </div>
+                    <div class="divide-y" id="table-riwayat">
+                        <p class="text-gray-400 text-center py-8 text-sm">Belum ada riwayat</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Data WP Section -->
+            <section id="section-wp" class="page-section">
+                <div class="flex gap-2 mb-4">
+                    <div class="flex-1 relative">
+                        <i class="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="search-wp" placeholder="Cari wajib pajak..." class="w-full pl-10 pr-4 py-2 border rounded-xl text-sm focus:ring-2 focus:ring-blue-500" onkeyup="filterWP()">
+                    </div>
+                    <button onclick="openModal('wp')" class="bg-blue-500 text-white px-4 rounded-xl touch-feedback">
+                        <i class="ri-add-line text-xl"></i>
+                    </button>
+                </div>
+                <div class="card">
+                    <div class="divide-y" id="table-wp">
+                        <p class="text-gray-400 text-center py-8 text-sm">Belum ada data WP</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Setting Section -->
+            <section id="section-setting" class="page-section">
+                <div class="card p-4 mb-4">
+                    <h3 class="font-semibold text-gray-800 mb-4">Ganti Password</h3>
+                    <form id="form-change-password" class="space-y-3">
+                        <div>
+                            <label class="text-sm text-gray-600 mb-1 block">Password Lama</label>
+                            <input type="password" id="old-password" required class="w-full px-4 py-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-600 mb-1 block">Password Baru</label>
+                            <input type="password" id="new-password" required class="w-full px-4 py-2 border rounded-lg" minlength="4">
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-600 mb-1 block">Konfirmasi Password</label>
+                            <input type="password" id="confirm-password" required class="w-full px-4 py-2 border rounded-lg" minlength="4">
+                        </div>
+                        <button type="submit" class="w-full bg-blue-500 text-white py-3 rounded-xl font-medium touch-feedback">
+                            <i class="ri-lock-line mr-2"></i> Ganti Password
+                        </button>
+                    </form>
+                </div>
+
+                <div class="card p-4 mb-4">
+                    <h3 class="font-semibold text-gray-800 mb-4">Pengaturan</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-sm text-gray-600 mb-1 block">Nama Daerah</label>
+                            <input type="text" id="setting-daerah" class="w-full px-4 py-2 border rounded-lg" placeholder="Contoh: Bandung">
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-600 mb-1 block">Nama Dinas</label>
+                            <input type="text" id="setting-dinas" class="w-full px-4 py-2 border rounded-lg" value="Dinas Pendapatan Daerah">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="text-sm text-gray-600 mb-1 block">Tarif Makanan (%)</label>
+                                <input type="number" id="setting-tarif-makanan" class="w-full px-4 py-2 border rounded-lg" value="10" step="0.1">
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-600 mb-1 block">Tarif Minuman (%)</label>
+                                <input type="number" id="setting-tarif-minuman" class="w-full px-4 py-2 border rounded-lg" value="10" step="0.1">
+                            </div>
+                        </div>
+                        <button onclick="saveSettings()" class="w-full bg-blue-500 text-white py-3 rounded-xl font-medium touch-feedback">
+                            <i class="ri-save-line mr-2"></i> Simpan Pengaturan
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Firebase Settings -->
+                <div class="card p-4 mb-4">
+                    <h3 class="font-semibold text-gray-800 mb-4">
+                        <i class="ri-cloud-line mr-1"></i> Sinkronisasi Cloud
+                    </h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="text-sm text-gray-600 mb-1 block">Status Sinkronisasi</label>
+                            <div id="firebase-status" class="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                                <span class="w-3 h-3 bg-yellow-500 rounded-full" id="firebase-status-dot"></span>
+                                <span class="text-sm text-gray-600" id="firebase-status-text">Terkonfigurasi</span>
+                            </div>
+                        </div>
+                        <div id="firebase-config-section" class="space-y-3">
+                            <div>
+                                <label class="text-sm text-gray-600 mb-1 block">Firebase API Key</label>
+                                <input type="text" id="fb-api-key" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="AIza...">
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-600 mb-1 block">Firebase Project ID</label>
+                                <input type="text" id="fb-project-id" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="your-project-id">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="text-sm text-gray-600 mb-1 block">Auth Domain</label>
+                                    <input type="text" id="fb-auth-domain" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="project.firebaseapp.com">
+                                </div>
+                                <div>
+                                    <label class="text-sm text-gray-600 mb-1 block">Database URL</label>
+                                    <input type="text" id="fb-db-url" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="https://...">
+                                </div>
+                            </div>
+                            <button onclick="saveFirebaseConfig()" class="w-full bg-purple-500 text-white py-3 rounded-xl font-medium touch-feedback">
+                                <i class="ri-cloud-line mr-2"></i> Simpan Konfigurasi
+                            </button>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="manualSync()" class="flex-1 bg-green-500 text-white py-3 rounded-xl font-medium touch-feedback">
+                                <i class="ri-refresh-line mr-2"></i> Sinkronkan
+                            </button>
+                            <button onclick="testConnection()" class="flex-1 bg-blue-500 text-white py-3 rounded-xl font-medium touch-feedback">
+                                <i class="ri-wifi-line mr-2"></i> Test Koneksi
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-4 mb-4">
+                    <h3 class="font-semibold text-gray-800 mb-4">Pejabat Penandatangan</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <label class="text-sm text-gray-600 mb-1 block">Mengetahui (Pejabat 1)</label>
+                            <input type="text" id="setting-pejabat1" class="w-full px-4 py-2 border rounded-lg" placeholder="Nama Pejabat">
+                            <input type="text" id="setting-nip1" class="w-full px-4 py-2 border rounded-lg mt-1" placeholder="NIP">
+                        </div>
+                        <div>
+                            <label class="text-sm text-gray-600 mb-1 block">Menyetujui (Pejabat 2)</label>
+                            <input type="text" id="setting-pejabat2" class="w-full px-4 py-2 border rounded-lg" placeholder="Nama Pejabat">
+                            <input type="text" id="setting-nip2" class="w-full px-4 py-2 border rounded-lg mt-1" placeholder="NIP">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card p-4">
+                    <h3 class="font-semibold text-gray-800 mb-4">Data Petugas</h3>
+                    <div id="list-petugas" class="space-y-3"></div>
+                    <button onclick="openModal('petugas')" class="w-full mt-4 border-2 border-dashed border-gray-300 rounded-xl py-3 text-gray-500 touch-feedback">
+                        <i class="ri-add-line mr-2"></i> Tambah Petugas
+                    </button>
+                </div>
+
+                <div class="card p-4 mt-4">
+                    <h3 class="font-semibold text-gray-800 mb-2">Info Aplikasi</h3>
+                    <p class="text-sm text-gray-500">Kartu Kontrol PBJT v2.0</p>
+                    <p class="text-xs text-gray-400 mt-1">Aplikasi Pemungutan Pajak Bukan Pemilik Kendaraan</p>
+                    <p class="text-xs text-gray-400">Dengan Sinkronisasi Cloud</p>
+                    <div class="mt-3 pt-3 border-t flex gap-2">
+                        <button onclick="exportData()" class="flex-1 py-2 bg-green-100 text-green-600 rounded-lg text-sm touch-feedback">
+                            <i class="ri-download-line mr-1"></i> Export
+                        </button>
+                        <button onclick="document.getElementById('import-file').click()" class="flex-1 py-2 bg-blue-100 text-blue-600 rounded-lg text-sm touch-feedback">
+                            <i class="ri-upload-line mr-1"></i> Import
+                        </button>
+                        <input type="file" id="import-file" accept=".json" class="hidden" onchange="importData(event)">
+                    </div>
+                    <button onclick="resetData()" class="w-full mt-2 py-2 bg-red-100 text-red-600 rounded-lg text-sm touch-feedback">
+                        <i class="ri-delete-bin-line mr-1"></i> Reset Semua Data
+                    </button>
+                </div>
+            </section>
+        </main>
+
+        <!-- FAB Button -->
+        <div id="fab-button" class="fab hidden" onclick="openModal('tambah')">
+            <i class="ri-add-line text-3xl"></i>
+        </div>
+
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav no-print">
+            <div class="flex justify-around py-2">
+                <button onclick="showSection('dashboard')" class="nav-item active flex-1 flex flex-col items-center py-1 relative">
+                    <i class="ri-home-5-line text-2xl"></i>
+                    <span class="text-xs mt-1">Beranda</span>
+                    <div class="nav-indicator"></div>
+                </button>
+                <button onclick="showSection('kartu')" class="nav-item flex-1 flex flex-col items-center py-1 relative">
+                    <i class="ri-clipboard-line text-2xl"></i>
+                    <span class="text-xs mt-1">Kartu</span>
+                    <div class="nav-indicator"></div>
+                </button>
+                <button onclick="showSection('tunggakan')" class="nav-item flex-1 flex flex-col items-center py-1 relative">
+                    <div class="relative">
+                        <i class="ri-alarm-warning-line text-2xl"></i>
+                        <span id="tunggakan-badge" class="badge hidden">0</span>
+                    </div>
+                    <span class="text-xs mt-1">Tunggakan</span>
+                    <div class="nav-indicator"></div>
+                </button>
+                <button onclick="showSection('riwayat')" class="nav-item flex-1 flex flex-col items-center py-1 relative">
+                    <i class="ri-history-line text-2xl"></i>
+                    <span class="text-xs mt-1">Riwayat</span>
+                    <div class="nav-indicator"></div>
+                </button>
+                <button onclick="showSection('wp')" class="nav-item flex-1 flex flex-col items-center py-1 relative">
+                    <i class="ri-building-line text-2xl"></i>
+                    <span class="text-xs mt-1">Data WP</span>
+                    <div class="nav-indicator"></div>
+                </button>
+            </div>
+        </nav>
+
+        <button onclick="showSection('setting')" class="fixed bottom-24 right-4 w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center shadow z-30 no-print touch-feedback">
+            <i class="ri-settings-3-line text-gray-600"></i>
+        </button>
+    </div>
+
+    <!-- Offline Indicator -->
+    <div id="offline-indicator" class="offline-indicator fixed top-0 left-0 right-0 bg-red-500 text-white text-center py-2 text-sm z-[100] no-print">
+        <i class="ri-wifi-off-line mr-1"></i> Anda sedang offline
+    </div>
+
+    <!-- Sync Indicator -->
+    <div id="sync-indicator" class="fixed top-0 left-0 right-0 bg-green-500 text-white text-center py-2 text-sm z-[100] no-print hidden">
+        <i class="ri-refresh-line mr-1 spinning"></i> <span id="sync-message">Sinkronisasi...</span>
+    </div>
+
+    <!-- Modal Tambah Objek -->
+    <div id="modal-tambah" class="modal fixed inset-0 bg-black/50 flex items-end z-50 hidden opacity-0">
+        <div class="modal-content bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto transform translate-y-full">
+            <div class="p-4 border-b sticky top-0 bg-white rounded-t-3xl flex justify-between items-center">
+                <h3 class="font-semibold text-lg">Tambah Objek</h3>
+                <button onclick="closeModal('tambah')" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <form id="form-tambah" class="p-4 space-y-4 pb-8">
+                <div>
+                    <label class="text-sm text-gray-600 mb-1 block">Wajib Pajak *</label>
+                    <select id="tambah-wp" required class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 bg-white" onchange="updateTarifInput()">
+                        <option value="">Pilih WP</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-sm text-gray-600 mb-1 block">Omzet Makanan</label>
+                        <input type="number" id="tambah-omzet-makanan" class="w-full px-4 py-2 border rounded-lg" placeholder="0" onkeyup="hitungPajakInput()">
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-600 mb-1 block">Omzet Minuman</label>
+                        <input type="number" id="tambah-omzet-minuman" class="w-full px-4 py-2 border rounded-lg" placeholder="0" onkeyup="hitungPajakInput()">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-sm text-gray-600 mb-1 block">Tarif (%)</label>
+                        <input type="number" id="tambah-tarif" class="w-full px-4 py-2 border rounded-lg bg-gray-50" value="10" readonly>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-600 mb-1 block">Status *</label>
+                        <select id="tambah-status" required class="w-full px-4 py-2 border rounded-lg" onchange="toggleTunggakanFields()">
+                            <option value="Lunas">Lunas</option>
+                            <option value="Belum Lunas">Belum Lunas</option>
+                            <option value="Janji Bayar">Janji Bayar</option>
+                            <option value="Tunggakan">Tunggakan</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="bg-blue-50 rounded-xl p-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-xs text-gray-500">Total Omzet</p>
+                            <p class="text-xl font-bold text-gray-800" id="tambah-total-omzet">Rp 0</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-gray-500">Pajak</p>
+                            <p class="text-xl font-bold text-blue-600" id="tambah-total-pajak">Rp 0</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="tunggakan-fields" class="hidden space-y-4 border-t pt-4">
+                    <div class="bg-red-50 rounded-xl p-4">
+                        <p class="text-sm font-medium text-red-800 mb-3"><i class="ri-alarm-warning-line mr-1"></i> Info Tunggakan</p>
+                        <div class="space-y-3">
+                            <div>
+                                <label class="text-sm text-gray-600 mb-1 block">Tgl Janji Bayar</label>
+                                <input type="date" id="tambah-tgl-janji" class="w-full px-4 py-2 border rounded-lg">
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-600 mb-1 block">No. Telepon</label>
+                                <input type="tel" id="tambah-telp" class="w-full px-4 py-2 border rounded-lg" placeholder="Untuk follow-up">
+                            </div>
+                            <div>
+                                <label class="text-sm text-gray-600 mb-1 block">Keterangan *</label>
+                                <textarea id="tambah-ket-tunggakan" required class="w-full px-4 py-2 border rounded-lg" rows="2" placeholder="Alasan belum bayar..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-sm text-gray-600 mb-2 block">Foto Bukti Pemungutan</label>
+                    <div class="flex items-center gap-4">
+                        <img id="preview-foto" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect fill='%23f1f5f9' width='120' height='120' rx='12'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='12'%3ENo Photo%3C/text%3E%3C/svg%3E" class="photo-preview">
+                        <div class="flex flex-col gap-2">
+                            <button type="button" onclick="document.getElementById('tambah-foto').click()" class="bg-gray-100 px-4 py-3 rounded-xl text-sm font-medium touch-feedback">
+                                <i class="ri-camera-line mr-1"></i> Ambil Foto
+                            </button>
+                            <button type="button" onclick="document.getElementById('tambah-foto-gallery').click()" class="bg-blue-100 text-blue-600 px-4 py-3 rounded-xl text-sm font-medium touch-feedback">
+                                <i class="ri-image-line mr-1"></i> Galeri
+                            </button>
+                        </div>
+                        <input type="file" id="tambah-foto" accept="image/*" capture="environment" class="hidden" onchange="previewImage(this)">
+                        <input type="file" id="tambah-foto-gallery" accept="image/*" class="hidden" onchange="previewImage(this)">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-sm text-gray-600 mb-1 block">Keterangan</label>
+                    <input type="text" id="tambah-ket" class="w-full px-4 py-2 border rounded-lg" placeholder="Opsional">
+                </div>
+
+                <button type="submit" class="w-full bg-blue-500 text-white py-3 rounded-xl font-medium touch-feedback">
+                    <i class="ri-check-line mr-2"></i> Simpan Data
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Paraf -->
+    <div id="modal-paraf" class="modal fixed inset-0 bg-black/50 flex items-end z-50 hidden opacity-0">
+        <div class="modal-content bg-white rounded-t-3xl w-full transform translate-y-full">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="font-semibold text-lg">Paraf Wajib Pajak</h3>
+                <button onclick="closeModal('paraf')" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <div class="p-4">
+                <p class="text-sm text-gray-600 mb-3 text-center" id="paraf-wp-nama">Nama WP</p>
+                <canvas id="signature-pad" class="signature-pad w-full" width="350" height="180"></canvas>
+                <div class="flex gap-2 mt-4">
+                    <button type="button" onclick="clearSignature()" class="flex-1 border py-3 rounded-xl font-medium touch-feedback">
+                        <i class="ri-eraser-line mr-1"></i> Hapus
+                    </button>
+                    <button type="button" onclick="saveSignature()" class="flex-1 bg-blue-500 text-white py-3 rounded-xl font-medium touch-feedback">
+                        <i class="ri-check-line mr-1"></i> Simpan
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Foto -->
+    <div id="modal-foto" class="modal fixed inset-0 bg-black z-50 hidden opacity-0 flex items-center justify-center">
+        <div class="relative max-w-full max-h-full p-4">
+            <button onclick="closeModal('foto')" class="absolute -top-12 right-0 text-white w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                <i class="ri-close-line text-2xl"></i>
+            </button>
+            <img id="view-foto" src="" class="max-w-full max-h-[80vh] rounded-xl">
+        </div>
+    </div>
+
+    <!-- Modal Edit Item -->
+    <div id="modal-edit-item" class="modal fixed inset-0 bg-black/50 flex items-end z-50 hidden opacity-0">
+        <div class="modal-content bg-white rounded-t-3xl w-full transform translate-y-full">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="font-semibold text-lg">Edit Status</h3>
+                <button onclick="closeModal('edit-item')" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <form id="form-edit-item" class="p-4 space-y-4 pb-8">
+                <input type="hidden" id="edit-item-id">
+                <div class="bg-gray-50 rounded-xl p-4">
+                    <p class="font-semibold" id="edit-wp-nama">-</p>
+                    <p class="text-sm text-gray-600">Pajak: <span id="edit-pajak" class="font-bold text-blue-600">-</span></p>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-600 mb-1 block">Status Pembayaran</label>
+                    <select id="edit-status" required class="w-full px-4 py-3 border rounded-xl" onchange="toggleEditTunggakanFields()">
+                        <option value="Lunas">Lunas</option>
+                        <option value="Belum Lunas">Belum Lunas</option>
+                        <option value="Janji Bayar">Janji Bayar</option>
+                        <option value="Tunggakan">Tunggakan</option>
+                    </select>
+                </div>
+                <div id="edit-tunggakan-fields" class="hidden space-y-3">
+                    <div>
+                        <label class="text-sm text-gray-600 mb-1 block">Tgl Janji Bayar</label>
+                        <input type="date" id="edit-tgl-janji" class="w-full px-4 py-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-600 mb-1 block">Keterangan</label>
+                        <textarea id="edit-ket-tunggakan" class="w-full px-4 py-2 border rounded-lg" rows="2" placeholder="Alasan..."></textarea>
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white py-3 rounded-xl font-medium touch-feedback">
+                    <i class="ri-save-line mr-2"></i> Simpan
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal WP -->
+    <div id="modal-wp" class="modal fixed inset-0 bg-black/50 flex items-end z-50 hidden opacity-0">
+        <div class="modal-content bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto transform translate-y-full">
+            <div class="p-4 border-b sticky top-0 bg-white rounded-t-3xl flex justify-between items-center">
+                <h3 class="font-semibold text-lg" id="modal-wp-title">Tambah WP</h3>
+                <button onclick="closeModal('wp')" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <form id="form-wp" class="p-4 space-y-4 pb-8">
+                <input type="hidden" id="wp-id">
+                <div>
+                    <label class="text-sm text-gray-600 mb-1 block">NPWPD *</label>
+                    <input type="text" id="wp-npwpd" required class="w-full px-4 py-3 border rounded-xl" placeholder="Masukkan NPWPD">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-600 mb-1 block">Nama Usaha *</label>
+                    <input type="text" id="wp-nama" required class="w-full px-4 py-3 border rounded-xl" placeholder="Nama usaha/restoran">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-600 mb-1 block">Nama Pemilik *</label>
+                    <input type="text" id="wp-pemilik" required class="w-full px-4 py-3 border rounded-xl" placeholder="Nama pemilik">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-sm text-gray-600 mb-1 block">Jenis Usaha</label>
+                        <select id="wp-jenis" required class="w-full px-4 py-2 border rounded-lg">
+                            <option value="">Pilih</option>
+                            <option value="Restoran">Restoran</option>
+                            <option value="Kafe">Kafe</option>
+                            <option value="Catering">Catering</option>
+                            <option value="Warung Makan">Warung</option>
+                            <option value="Rumah Makan">RM</option>
+                            <option value="Kedai Kopi">Kedai Kopi</option>
+                            <option value="Lainnya">Lainnya</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-sm text-gray-600 mb-1 block">Tarif (%)</label>
+                        <input type="number" id="wp-tarif" class="w-full px-4 py-2 border rounded-lg" value="10" step="0.1">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-600 mb-1 block">Alamat *</label>
+                    <textarea id="wp-alamat" required class="w-full px-4 py-2 border rounded-lg" rows="2" placeholder="Alamat lengkap"></textarea>
+                </div>
+                <div>
+                    <label class="text-sm text-gray-600 mb-1 block">No. Telepon</label>
+                    <input type="tel" id="wp-telp" class="w-full px-4 py-2 border rounded-lg" placeholder="Nomor telepon">
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white py-3 rounded-xl font-medium touch-feedback">
+                    <i class="ri-save-line mr-2"></i> Simpan
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Petugas -->
+    <div id="modal-petugas" class="modal fixed inset-0 bg-black/50 flex items-end z-50 hidden opacity-0">
+        <div class="modal-content bg-white rounded-t-3xl w-full transform translate-y-full">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="font-semibold text-lg" id="modal-petugas-title">Tambah Petugas</h3>
+                <button onclick="closeModal('petugas')" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <form id="form-petugas" class="p-4 space-y-4 pb-8">
+                <input type="hidden" id="petugas-id">
+                <div>
+                    <label class="text-sm text-gray-600 mb-1 block">Nama Petugas *</label>
+                    <input type="text" id="petugas-nama" required class="w-full px-4 py-3 border rounded-xl" placeholder="Nama lengkap">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-600 mb-1 block">NIP *</label>
+                    <input type="text" id="petugas-nip" required class="w-full px-4 py-3 border rounded-xl" placeholder="Nomor Induk Pegawai">
+                </div>
+                <div>
+                    <label class="text-sm text-gray-600 mb-1 block">Jabatan</label>
+                    <input type="text" id="petugas-jabatan" class="w-full px-4 py-3 border rounded-xl" placeholder="Jabatan">
+                </div>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" id="petugas-aktif" class="w-5 h-5 text-blue-500 rounded">
+                    <span class="text-sm text-gray-700">Jadikan petugas aktif</span>
+                </label>
+                <button type="submit" class="w-full bg-blue-500 text-white py-3 rounded-xl font-medium touch-feedback">
+                    <i class="ri-save-line mr-2"></i> Simpan
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Petugas Select -->
+    <div id="modal-petugas-select" class="modal fixed inset-0 bg-black/50 flex items-end z-50 hidden opacity-0">
+        <div class="modal-content bg-white rounded-t-3xl w-full max-h-[70vh] overflow-y-auto transform translate-y-full">
+            <div class="p-4 border-b flex justify-between items-center sticky top-0 bg-white">
+                <h3 class="font-semibold text-lg">Pilih Petugas Aktif</h3>
+                <button onclick="closeModal('petugas-select')" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <div class="p-4 space-y-2" id="petugas-select-list"></div>
+        </div>
+    </div>
+
+    <!-- Modal Export -->
+    <div id="modal-export" class="modal fixed inset-0 bg-black/50 flex items-end z-50 hidden opacity-0">
+        <div class="modal-content bg-white rounded-t-3xl w-full transform translate-y-full">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="font-semibold text-lg">Export Data</h3>
+                <button onclick="closeModal('export')" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <div class="p-4 space-y-3">
+                <button onclick="exportData()" class="w-full py-4 bg-blue-100 text-blue-600 rounded-xl font-medium touch-feedback">
+                    <i class="ri-download-line mr-2"></i> Export Semua Data (JSON)
+                </button>
+                <button onclick="exportReport()" class="w-full py-4 bg-green-100 text-green-600 rounded-xl font-medium touch-feedback">
+                    <i class="ri-file-excel-line mr-2"></i> Export Laporan (CSV)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal View Item -->
+    <div id="modal-view-item" class="modal fixed inset-0 bg-black/50 flex items-center z-50 hidden opacity-0">
+        <div class="modal-content bg-white rounded-t-3xl w-full max-h-[90vh] overflow-y-auto transform translate-y-full">
+            <div class="p-4 border-b sticky top-0 bg-white rounded-t-3xl flex justify-between items-center">
+                <h3 class="font-semibold text-lg">Detail Pemungutan</h3>
+                <button onclick="closeModal('view-item')" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <div class="p-4" id="view-item-content"></div>
+        </div>
+    </div>
+
+    <!-- Modal Forgot Password -->
+    <div id="modal-forgot-password" class="modal fixed inset-0 bg-black/50 flex items-center z-50 hidden opacity-0">
+        <div class="modal-content bg-white rounded-t-3xl w-full max-w-md mx-4 transform translate-y-full">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="font-semibold text-lg">Reset Password</h3>
+                <button onclick="closeModal('forgot-password')" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <form id="form-reset-password" class="p-4 space-y-4">
+                <p class="text-sm text-gray-600">Masukkan NIP untuk mereset password ke default (admin123)</p>
+                <div>
+                    <label class="text-sm text-gray-600 mb-1 block">NIP</label>
+                    <input type="text" id="reset-nip" required class="w-full px-4 py-3 border rounded-xl" placeholder="Masukkan NIP">
+                </div>
+                <button type="submit" class="w-full bg-blue-500 text-white py-3 rounded-xl font-medium touch-feedback">
+                    <i class="ri-refresh-line mr-2"></i> Reset Password
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="fixed bottom-28 left-4 right-4 bg-gray-800 text-white px-4 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50 text-center">
+        <span id="toast-message">Berhasil!</span>
+    </div>
+
+    <!-- Print Area -->
+    <div id="print-area" class="hidden print-only">
+        <div class="p-4" style="max-width: 1000px; margin: 0 auto;">
+            <div class="text-center border-b-2 border-black pb-3 mb-4">
+                <h2 class="text-sm font-bold">PEMERINTAH KABUPATEN/KOTA <span id="print-daerah">-</span></h2>
+                <h1 class="text-base font-bold" id="print-dinas">-</h1>
+                <h2 class="text-sm font-bold mt-2 underline">KARTU KONTROL PEMUNGUTAN PAJAK</h2>
+                <p class="text-xs">Pajak Bukan Pemilik Kendaraan (PBJT) atas Makanan dan/atau Minuman</p>
+            </div>
+            <div class="mb-2 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                    <p><strong>No. Kartu:</strong> <span id="print-no-kartu">-</span></p>
+                    <p><strong>Tanggal:</strong> <span id="print-tanggal">-</span></p>
+                </div>
+                <div class="text-right">
+                    <p><strong>Petugas:</strong> <span id="print-petugas">-</span></p>
+                    <p><strong>NIP:</strong> <span id="print-nip">-</span></p>
+                </div>
+            </div>
+            <table class="w-full text-xs mb-2" style="border-collapse: collapse;">
+                <thead>
+                    <tr class="bg-gray-200">
+                        <th class="border border-black px-1 py-1 text-center" style="width: 30px;">No</th>
+                        <th class="border border-black px-1 py-1">NPWPD</th>
+                        <th class="border border-black px-1 py-1">Nama WP</th>
+                        <th class="border border-black px-1 py-1 text-right" style="width: 70px;">Omzet</th>
+                        <th class="border border-black px-1 py-1 text-center" style="width: 30px;">%</th>
+                        <th class="border border-black px-1 py-1 text-right" style="width: 70px;">Pajak</th>
+                        <th class="border border-black px-1 py-1 text-center" style="width: 40px;">Bayar</th>
+                        <th class="border border-black px-1 py-1 text-center" style="width: 60px;">Tgl Paraf</th>
+                        <th class="border border-black px-1 py-1" style="width: 30px;">Foto</th>
+                        <th class="border border-black px-1 py-1" style="width: 60px;">Paraf</th>
+                    </tr>
+                </thead>
+                <tbody id="print-table-body"></tbody>
+                <tfoot>
+                    <tr class="bg-gray-100 font-bold">
+                        <td colspan="3" class="border border-black px-1 py-1 text-center">JUMLAH</td>
+                        <td class="border border-black px-1 py-1 text-right" id="print-total-omzet">-</td>
+                        <td class="border border-black"></td>
+                        <td class="border border-black px-1 py-1 text-right" id="print-total-pajak">-</td>
+                        <td class="border border-black px-1 py-1 text-right" id="print-total-dibayar">-</td>
+                        <td colspan="3" class="border border-black"></td>
+                    </tr>
+                </tfoot>
+            </table>
+            <div class="mb-4 grid grid-cols-3 gap-2 text-xs">
+                <div class="text-center">
+                    <p>Mengetahui,</p>
+                    <p class="mt-12 underline" id="print-pejabat1">....................</p>
+                    <p>NIP. <span id="print-nip1">....................</span></p>
+                </div>
+                <div class="text-center">
+                    <p>Petugas Pemungut,</p>
+                    <p class="mt-12 underline" id="print-ttd-petugas">....................</p>
+                    <p>NIP. <span id="print-ttd-nip">....................</span></p>
+                </div>
+                <div class="text-center">
+                    <p>Menyetujui,</p>
+                    <p class="mt-12 underline" id="print-pejabat2">....................</p>
+                    <p>NIP. <span id="print-nip2">....................</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        // ==================== AUTHENTICATION SYSTEM ====================
+        const DEFAULT_USERS = [
+            { username: 'admin', password: 'admin123', nama: 'Administrator', role: 'Administrator', nip: 'ADMIN001' },
+            { username: 'petugas1', password: '123456', nama: 'Ahmad Fauzi', role: 'Petugas Pemungut', nip: '198501012010011001' },
+            { username: 'supervisor', password: 'supervisor123', nama: 'Budi Santoso', role: 'Supervisor', nip: 'SUPER001' }
+        ];
+
+        let users = JSON.parse(localStorage.getItem('pbjt-users')) || [...DEFAULT_USERS];
+        let currentUser = JSON.parse(localStorage.getItem('pbjt-current-user')) || null;
+        let sessionExpiry = localStorage.getItem('pbjt-session-expiry') || null;
+
+        // Check session on load
+        function checkSession() {
+            if (sessionExpiry && new Date().getTime() > parseInt(sessionExpiry)) {
+                logout();
+                return false;
+            }
+            if (currentUser) {
+                showApp();
+                return true;
+            }
+            showLogin();
+            return false;
+        }
+
+        function showLogin() {
+            document.getElementById('login-page').classList.remove('hidden');
+            document.getElementById('app-container').classList.add('hidden');
+        }
+
+        function showApp() {
+            document.getElementById('login-page').classList.add('hidden');
+            document.getElementById('app-container').classList.remove('hidden');
+            document.getElementById('user-name').textContent = currentUser.nama;
+            document.getElementById('user-role').textContent = currentUser.role;
+            updateDate();
+            initApp();
+        }
+
+        function login(username, password, rememberMe = false) {
+            const user = users.find(u => u.username === username || u.nip === username);
+            if (!user) {
+                showToast('Username/NIP tidak ditemukan!', 'error');
+                return false;
+            }
+            if (user.password !== password) {
+                showToast('Password salah!', 'error');
+                return false;
+            }
+            
+            currentUser = user;
+            localStorage.setItem('pbjt-current-user', JSON.stringify(currentUser));
+            
+            if (rememberMe) {
+                // Remember for 30 days
+                sessionExpiry = new Date().getTime() + (30 * 24 * 60 * 60 * 1000);
+            } else {
+                // Remember for 8 hours
+                sessionExpiry = new Date().getTime() + (8 * 60 * 60 * 1000);
+            }
+            localStorage.setItem('pbjt-session-expiry', sessionExpiry);
+            
+            showToast(`Selamat datang, ${user.nama}!`);
+            showApp();
+            return true;
+        }
+
+        function logout() {
+            currentUser = null;
+            sessionExpiry = null;
+            localStorage.removeItem('pbjt-current-user');
+            localStorage.removeItem('pbjt-session-expiry');
+            showLogin();
+            showToast('Anda telah logout!');
+        }
+
+        function togglePassword() {
+            const input = document.getElementById('login-password');
+            const icon = document.getElementById('password-toggle-icon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'ri-eye-off-line';
+            } else {
+                input.type = 'password';
+                icon.className = 'ri-eye-line';
+            }
+        }
+
+        function changePassword(oldPassword, newPassword) {
+            if (!currentUser) return { success: false, message: 'Tidak ada user login' };
+            if (currentUser.password !== oldPassword) {
+                return { success: false, message: 'Password lama salah' };
+            }
+            if (newPassword.length < 4) {
+                return { success: false, message: 'Password minimal 4 karakter' };
+            }
+            
+            currentUser.password = newPassword;
+            const idx = users.findIndex(u => u.username === currentUser.username);
+            if (idx !== -1) {
+                users[idx].password = newPassword;
+                localStorage.setItem('pbjt-users', JSON.stringify(users));
+                localStorage.setItem('pbjt-current-user', JSON.stringify(currentUser));
+            }
+            return { success: true, message: 'Password berhasil diubah!' };
+        }
+
+        function resetPassword(nip) {
+            const user = users.find(u => u.nip === nip || u.username === nip);
+            if (!user) {
+                return { success: false, message: 'NIP tidak ditemukan!' };
+            }
+            user.password = 'admin123';
+            localStorage.setItem('pbjt-users', JSON.stringify(users));
+            return { success: true, message: 'Password berhasil di-reset ke default (admin123)' };
+        }
+
+        // Login form handler
+        document.getElementById('login-form')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('login-username')?.value;
+            const password = document.getElementById('login-password')?.value;
+            const rememberMe = document.getElementById('remember-me')?.checked;
+            
+            if (login(username, password, rememberMe)) {
+                this.reset();
+            }
+        });
+
+        // Change password form handler
+        document.getElementById('form-change-password')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const oldPassword = document.getElementById('old-password')?.value;
+            const newPassword = document.getElementById('new-password')?.value;
+            const confirmPassword = document.getElementById('confirm-password')?.value;
+            
+            if (newPassword !== confirmPassword) {
+                showToast('Konfirmasi password tidak cocok!', 'error');
+                return;
+            }
+            
+            const result = changePassword(oldPassword, newPassword);
+            if (result.success) {
+                showToast(result.message);
+                this.reset();
+            } else {
+                showToast(result.message, 'error');
+            }
+        });
+
+        // Reset password form handler
+        document.getElementById('form-reset-password')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const nip = document.getElementById('reset-nip')?.value;
+            const result = resetPassword(nip);
+            if (result.success) {
+                showToast(result.message);
+                closeModal('forgot-password');
+                this.reset();
+            } else {
+                showToast(result.message, 'error');
+            }
+        });
+
+        // ==================== MAIN APP ====================
+        let firebaseConfig = JSON.parse(localStorage.getItem('pbjt-firebase-config')) || { apiKey: "", authDomain: "", projectId: "", databaseURL: "" };
+        let db = null, firebaseConnected = false, syncInProgress = false;
+        let wajibPajak = JSON.parse(localStorage.getItem('pbjt-wp')) || [];
+        let petugas = JSON.parse(localStorage.getItem('pbjt-petugas')) || [];
+        let kartuKontrol = JSON.parse(localStorage.getItem('pbjt-kartu')) || [];
+        let settings = JSON.parse(localStorage.getItem('pbjt-settings')) || { daerah: '', dinas: 'Dinas Pendapatan Daerah', tarifMakanan: 10, tarifMinuman: 10, pejabat1: '', nip1: '', pejabat2: '', nip2: '' };
+        let activePetugasId = localStorage.getItem('pbjt-active-petugas') || '';
+        let currentKartuId = null, currentSignatureItemId = null, chartPajak = null, signaturePad = null, currentPhotoData = null, isOnline = navigator.onLine;
+
+        function initApp() {
+            initChart();
+            loadSettings();
+            initPullToRefresh();
+            loadFirebaseConfigToUI();
+            initFirebase();
+            renderAll();
+            document.getElementById('filter-tanggal').valueAsDate = new Date();
+            updateActivePetugasInfo();
+            checkOnlineStatus();
+            if ('serviceWorker' in navigator) registerServiceWorker();
+            window.addEventListener('offline', checkOnlineStatus);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkSession();
+        });
+
+        function loadFirebaseConfigToUI() {
+            document.getElementById('fb-api-key').value = firebaseConfig.apiKey || '';
+            document.getElementById('fb-auth-domain').value = firebaseConfig.authDomain || '';
+            document.getElementById('fb-project-id').value = firebaseConfig.projectId || '';
+            document.getElementById('fb-db-url').value = firebaseConfig.databaseURL || '';
+        }
+
+        function registerServiceWorker() {
+            const swCode = `const CACHE_NAME='pbjt-v2';self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE_NAME).then(c=>c.add(['/']))));self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request))));`;
+            navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode], { type: 'application/javascript' }))).catch(() => {});
+        }
+
+        function checkOnlineStatus() {
+            isOnline = navigator.onLine;
+            const indicator = document.getElementById('offline-indicator');
+            if (!isOnline) indicator.classList.add('show');
+            else indicator.classList.remove('show');
+        }
+
+        function initPullToRefresh() {
+            const container = document.getElementById('app-container'), indicator = document.getElementById('pull-indicator'), icon = document.getElementById('pull-icon');
+            let startY = 0, pulling = false;
+            container.addEventListener('touchstart', e => { if (container.scrollTop === 0) { startY = e.touches[0].clientY; pulling = true; } });
+            container.addEventListener('touchmove', e => { if (!pulling) return; const y = e.touches[0].clientY - startY; if (y > 50) { indicator.classList.add('visible'); icon.classList.add('spinning'); } });
+            container.addEventListener('touchend', () => { if (indicator.classList.contains('visible')) refreshData(); indicator.classList.remove('visible'); icon.classList.remove('spinning'); pulling = false; });
+        }
+
+        function refreshData() {
+            showToast('Memuat data...');
+            if (db && firebaseConnected) manualSync();
+            setTimeout(() => { renderAll(); showToast('Data diperbarui!'); }, 500);
+        }
+
+        function updateDate() {
+            document.getElementById('current-date').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+        }
+
+        function showSection(section) {
+            document.querySelectorAll('.page-section').forEach(el => el.classList.remove('active'));
+            document.getElementById('section-' + section).classList.add('active');
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            const navEl = document.querySelector(`.nav-item[onclick="showSection('${section}')"]`);
+            if (navEl) navEl.classList.add('active');
+            const titles = { dashboard: 'Dashboard', kartu: 'Kartu Kontrol', tunggakan: 'Tunggakan', riwayat: 'Riwayat', wp: 'Data Wajib Pajak', setting: 'Pengaturan' };
+            document.getElementById('page-title').textContent = titles[section];
+            document.getElementById('fab-button').classList.toggle('hidden', section !== 'kartu');
+            if (section === 'kartu') loadKartuKontrol();
+            if (section === 'tunggakan') loadTunggakan();
+            if (section === 'riwayat') loadRiwayat();
+        }
+
+        function openModal(type) {
+            const modal = document.getElementById('modal-' + type);
+            modal.classList.remove('hidden');
+            setTimeout(() => modal.classList.add('active', 'opacity-100'), 10);
+            setTimeout(() => modal.querySelector('.modal-content').classList.remove('translate-y-full'), 10);
+            if (type === 'tambah') { updateWPDropdown(); document.getElementById('form-tambah').reset(); document.getElementById('tambah-tarif').value = '10'; document.getElementById('tambah-total-omzet').textContent = 'Rp 0'; document.getElementById('tambah-total-pajak').textContent = 'Rp 0'; document.getElementById('tunggakan-fields').classList.add('hidden'); currentPhotoData = null; resetPhotoPreview(); }
+            if (type === 'paraf') initSignaturePad();
+            if (type === 'petugas-select') renderPetugasSelect();
+            if (type === 'wp') { document.getElementById('form-wp').reset(); document.getElementById('wp-id').value = ''; document.getElementById('wp-tarif').value = '10'; document.getElementById('modal-wp-title').textContent = 'Tambah WP'; }
+            if (type === 'petugas') { document.getElementById('form-petugas').reset(); document.getElementById('petugas-id').value = ''; document.getElementById('modal-petugas-title').textContent = 'Tambah Petugas'; }
+        }
+
+        function closeModal(type) {
+            const modal = document.getElementById('modal-' + type);
+            modal.querySelector('.modal-content').classList.add('translate-y-full');
+            setTimeout(() => modal.classList.remove('active', 'opacity-100'), 200);
+            setTimeout(() => modal.classList.add('hidden'), 300);
+        }
+
+        function initSignaturePad() {
+            const canvas = document.getElementById('signature-pad'), ctx = canvas.getContext('2d');
+            canvas.width = 350; canvas.height = 180;
+            ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+            let isDrawing = false, lastX = 0, lastY = 0;
+            function getPos(e) {
+                const rect = canvas.getBoundingClientRect(), scaleX = canvas.width / rect.width, scaleY = canvas.height / rect.height;
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX, clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+            }
+            function start(e) { isDrawing = true; const pos = getPos(e); lastX = pos.x; lastY = pos.y; e.preventDefault(); }
+            function draw(e) { if (!isDrawing) return; const pos = getPos(e); ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(pos.x, pos.y); ctx.stroke(); lastX = pos.x; lastY = pos.y; e.preventDefault(); }
+            function stop() { isDrawing = false; }
+            canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', draw); canvas.addEventListener('mouseup', stop);
+            canvas.addEventListener('touchstart', start, { passive: false }); canvas.addEventListener('touchmove', draw, { passive: false }); canvas.addEventListener('touchend', stop);
+            signaturePad = { canvas, ctx };
+        }
+
+        function clearSignature() { if (signaturePad) signaturePad.ctx.clearRect(0, 0, signaturePad.canvas.width, signaturePad.canvas.height); }
+
+        function saveSignature() {
+            const kartu = kartuKontrol.find(k => k.id === currentKartuId);
+            if (kartu && signaturePad) {
+                const item = kartu.items.find(i => i.id === currentSignatureItemId);
+                if (item) {
+                    item.paraf = signaturePad.canvas.toDataURL('image/png');
+                    item.tglParaf = new Date().toISOString();
+                    saveKartuKontrol(); autoSyncKartu(); renderKartuKontrol(kartu); closeModal('paraf');
+                    showToast('Paraf tersimpan!');
+                }
+            }
+        }
+
+        function openParafModal(itemId, wpNama) {
+            currentSignatureItemId = itemId;
+            document.getElementById('paraf-wp-nama').textContent = wpNama;
+            openModal('paraf');
+        }
+
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('preview-foto').src = e.target.result;
+                    currentPhotoData = e.target.result;
+                };
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+
+        function resetPhotoPreview() {
+            document.getElementById('preview-foto').src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120' viewBox='0 0 120 120'%3E%3Crect fill='%23f1f5f9' width='120' height='120' rx='12'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='12'%3ENo Photo%3C/text%3E%3C/svg%3E";
+        }
+
+        function viewPhoto(photoData) {
+            if (photoData) {
+                document.getElementById('view-foto').src = photoData;
+                const modal = document.getElementById('modal-foto');
+                modal.classList.remove('hidden');
+                setTimeout(() => modal.classList.add('opacity-100'), 10);
+            }
+        }
+
+        function viewItemDetail(itemId) {
+            const kartu = kartuKontrol.find(k => k.id === currentKartuId);
+            if (!kartu) return;
+            const item = kartu.items.find(i => i.id === itemId);
+            if (!item) return;
+
+            const statusClass = item.status === 'Lunas' ? 'status-lunas' : item.status === 'Janji Bayar' ? 'status-janji' : item.status === 'Belum Lunas' ? 'status-belum' : 'status-tunggakan';
+            document.getElementById('view-item-content').innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center"><i class="ri-building-line text-blue-600 text-xl"></i></div>
+                        <div><p class="font-semibold">${item.wpNama}</p><p class="text-xs text-gray-500">${item.npwpd || '-'}</p></div>
+                    </div>
+                    <div class="bg-gray-50 rounded-xl p-4">
+                        <p class="text-sm text-gray-500 mb-2">Rincian Pajak</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div><p class="text-xs text-gray-400">Omzet</p><p class="font-bold">${formatRupiah(item.omzet)}</p></div>
+                            <div><p class="text-xs text-gray-400">Tarif</p><p class="font-bold">${item.tarif}%</p></div>
+                            <div><p class="text-xs text-gray-400">Pajak</p><p class="font-bold text-blue-600">${formatRupiah(item.pajak)}</p></div>
+                            <div><p class="text-xs text-gray-400">Status</p><span class="px-2 py-1 rounded-full text-xs ${statusClass}">${item.status}</span></div>
+                        </div>
+                    </div>
+                    ${item.foto ? `<div><p class="text-sm text-gray-500 mb-2">Foto Bukti</p><img src="${item.foto}" class="w-full rounded-xl" onclick="viewPhoto('${item.foto}')"></div>` : ''}
+                    ${item.paraf ? `<div><p class="text-sm text-gray-500 mb-2">Paraf WP</p><img src="${item.paraf}" class="w-full bg-gray-50 rounded-xl p-2"><p class="text-xs text-gray-400 mt-1">Tgl Paraf: ${item.tglParaf ? formatDate(item.tglParaf) : '-'}</p></div>` : ''}
+                    ${item.status !== 'Lunas' && item.ketTunggakan ? `<div class="bg-red-50 rounded-xl p-4"><p class="text-sm font-medium text-red-800 mb-2"><i class="ri-information-line mr-1"></i> Keterangan Tunggakan</p><p class="text-sm text-red-700">${item.ketTunggakan}</p>${item.tglJanji ? `<p class="text-xs text-red-600 mt-2"><i class="ri-calendar-line mr-1"></i> Janji bayar: ${formatDate(item.tglJanji)}</p>` : ''}</div>` : ''}
+                    ${item.ket ? `<div><p class="text-sm text-gray-500 mb-1">Keterangan</p><p class="text-sm bg-gray-50 p-3 rounded-xl">${item.ket || '-'}</p></div>` : ''}
+                </div>`;
+            openModal('view-item');
+        }
+
+        function toggleTunggakanFields() {
+            document.getElementById('tunggakan-fields').classList.toggle('hidden', document.getElementById('tambah-status').value === 'Lunas');
+        }
+
+        function toggleEditTunggakanFields() {
+            document.getElementById('edit-tunggakan-fields').classList.toggle('hidden', document.getElementById('edit-status').value === 'Lunas');
+        }
+
+        function updateActivePetugasInfo() {
+            const p = getActivePetugas();
+            if (p) {
+                document.getElementById('active-petugas-nama').textContent = p.nama;
+                document.getElementById('active-petugas-nip').textContent = p.nip || '-';
+            }
+        }
+
+        function getActivePetugas() {
+            return activePetugasId ? petugas.find(x => x.id === activePetugasId) : petugas[0];
+        }
+
+        function setActivePetugas(id) {
+            activePetugasId = id;
+            localStorage.setItem('pbjt-active-petugas', id);
+            updateActivePetugasInfo();
+            closeModal('petugas-select');
+            showToast('Petugas aktif diubah!');
+        }
+
+        function renderPetugasSelect() {
+            document.getElementById('petugas-select-list').innerHTML = petugas.map(p => `
+                <div class="flex items-center justify-between p-3 border rounded-xl ${p.id === activePetugasId ? 'bg-blue-50 border-blue-500' : ''}" onclick="setActivePetugas('${p.id}')">
+                    <div><p class="font-medium">${p.nama}</p><p class="text-xs text-gray-500">NIP: ${p.nip}</p></div>
+                    ${p.id === activePetugasId ? '<span class="px-2 py-1 bg-blue-500 text-white text-xs rounded-full">Aktif</span>' : ''}
+                </div>`).join('') || '<p class="text-gray-400 text-center py-4">Belum ada petugas</p>';
+        }
+
+        function renderPetugas() {
+            document.getElementById('list-petugas').innerHTML = petugas.map(p => `
+                <div class="flex items-center gap-3 p-3 border rounded-xl ${p.id === activePetugasId ? 'border-blue-500 bg-blue-50' : ''}">
+                    <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center"><i class="ri-user-tie-line text-blue-500"></i></div>
+                    <div class="flex-1"><p class="font-medium text-sm">${p.nama}</p><p class="text-xs text-gray-500">NIP: ${p.nip}</p></div>
+                    <div class="flex gap-1">
+                        <button onclick="editPetugas('${p.id}')" class="text-blue-500 p-2"><i class="ri-edit-line"></i></button>
+                        <button onclick="deletePetugas('${p.id}')" class="text-red-500 p-2"><i class="ri-delete-bin-line"></i></button>
+                    </div>
+                </div>`).join('') || '<p class="text-gray-400 text-center py-4">Belum ada petugas</p>';
+        }
+
+        function editPetugas(id) {
+            const p = petugas.find(x => x.id === id);
+            if (p) {
+                document.getElementById('petugas-id').value = p.id;
+                document.getElementById('petugas-nama').value = p.nama;
+                document.getElementById('petugas-nip').value = p.nip;
+                document.getElementById('petugas-jabatan').value = p.jabatan || '';
+                document.getElementById('petugas-aktif').checked = p.id === activePetugasId;
+                document.getElementById('modal-petugas-title').textContent = 'Edit Petugas';
+                openModal('petugas');
+            }
+        }
+
+        function deletePetugas(id) {
+            if (confirm('Hapus petugas ini?')) {
+                petugas = petugas.filter(p => p.id !== id);
+                if (activePetugasId === id) activePetugasId = '';
+                localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
+                autoSyncData();
+                renderPetugas();
+                updateActivePetugasInfo();
+                showToast('Petugas dihapus!');
+            }
+        }
+
+        function renderWP() {
+            const search = document.getElementById('search-wp')?.value.toLowerCase() || '';
+            let filtered = wajibPajak.filter(wp => wp.nama.toLowerCase().includes(search) || wp.npwpd.toLowerCase().includes(search));
+            document.getElementById('table-wp').innerHTML = filtered.map(wp => `
+                <div class="p-4 touch-feedback">
+                    <div class="flex justify-between items-start">
+                        <div class="flex-1" onclick="editWP('${wp.id}')">
+                            <p class="font-medium">${wp.nama}</p>
+                            <p class="text-xs text-gray-500 font-mono">${wp.npwpd}</p>
+                            <p class="text-xs text-gray-400">${wp.jenis} • ${wp.alamat}</p>
+                        </div>
+                        <div class="flex gap-1">
+                            <button onclick="event.stopPropagation(); editWP('${wp.id}')" class="text-blue-500 p-2"><i class="ri-edit-line"></i></button>
+                            <button onclick="event.stopPropagation(); deleteWP('${wp.id}')" class="text-red-500 p-2"><i class="ri-delete-bin-line"></i></button>
+                        </div>
+                    </div>
+                </div>`).join('') || '<p class="text-gray-400 text-center py-8">Tidak ada data WP</p>';
+        }
+
+        function editWP(id) {
+            const wp = wajibPajak.find(w => w.id === id);
+            if (wp) {
+                document.getElementById('wp-id').value = wp.id;
+                document.getElementById('wp-npwpd').value = wp.npwpd;
+                document.getElementById('wp-nama').value = wp.nama;
+                document.getElementById('wp-pemilik').value = wp.pemilik;
+                document.getElementById('wp-jenis').value = wp.jenis;
+                document.getElementById('wp-alamat').value = wp.alamat;
+                document.getElementById('wp-telp').value = wp.telp || '';
+                document.getElementById('wp-tarif').value = wp.tarif;
+                document.getElementById('modal-wp-title').textContent = 'Edit WP';
+                openModal('wp');
+            }
+        }
+
+        function deleteWP(id) {
+            if (confirm('Hapus WP ini?')) {
+                wajibPajak = wajibPajak.filter(w => w.id !== id);
+                localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak));
+                autoSyncData();
+                renderWP();
+                showToast('WP dihapus!');
+            }
+        }
+
+        function filterWP() { renderWP(); }
+
+        function updateWPDropdown() {
+            const select = document.getElementById('tambah-wp');
+            if (!select) return;
+            select.innerHTML = '<option value="">Pilih WP</option>' + wajibPajak.map(wp => `<option value="${wp.id}">${wp.nama}</option>`).join('');
+        }
+
+        function updateTarifInput() {
+            const wp = wajibPajak.find(w => w.id === document.getElementById('tambah-wp')?.value);
+            if (wp && document.getElementById('tambah-tarif')) {
+                document.getElementById('tambah-tarif').value = wp.tarif;
+            }
+            hitungPajakInput();
+        }
+
+        function hitungPajakInput() {
+            const omzetM = parseFloat(document.getElementById('tambah-omzet-makanan')?.value) || 0;
+            const omzetN = parseFloat(document.getElementById('tambah-omzet-minuman')?.value) || 0;
+            const tarif = parseFloat(document.getElementById('tambah-tarif')?.value) || 10;
+            const omzet = omzetM + omzetN;
+            const pajak = omzet * (tarif / 100);
+            const elOmzet = document.getElementById('tambah-total-omzet');
+            const elPajak = document.getElementById('tambah-total-pajak');
+            if (elOmzet) elOmzet.textContent = formatRupiah(omzet);
+            if (elPajak) elPajak.textContent = formatRupiah(pajak);
+        }
+
+        function createNewKartuKontrol() {
+            const tanggal = document.getElementById('filter-tanggal')?.value || new Date().toISOString().split('T')[0];
+            const p = getActivePetugas();
+            if (!p) { showToast('Pilih petugas aktif!', 'warning'); return; }
+            const existing = kartuKontrol.find(k => k.tanggal === tanggal && k.petugasId === activePetugasId);
+            if (existing) {
+                currentKartuId = existing.id;
+                showSection('kartu');
+                loadKartuKontrol();
+                return;
+            }
+            const newKartu = { id: Date.now().toString(), noKartu: `KK-${tanggal.replace(/-/g, '')}-${String(kartuKontrol.length + 1).padStart(3, '0')}`, tanggal: tanggal, petugasId: activePetugasId, petugasNama: p.nama, petugasNip: p.nip, jamMulai: new Date().toTimeString().slice(0, 5), jamSelesai: '', items: [], keterangan: '', status: 'Draft' };
+            kartuKontrol.push(newKartu);
+            localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
+            autoSyncKartu();
+            currentKartuId = newKartu.id;
+            showSection('kartu');
+            loadKartuKontrol();
+            showToast('Kartu kontrol baru dibuat!');
+        }
+
+        function loadKartuKontrol() {
+            const tanggal = document.getElementById('filter-tanggal')?.value;
+            const kartu = kartuKontrol.find(k => k.tanggal === tanggal);
+            if (kartu) {
+                currentKartuId = kartu.id;
+                renderKartuKontrol(kartu);
+            } else {
+                currentKartuId = null;
+                const table = document.getElementById('table-kartu');
+                if (table) table.innerHTML = '<p class="text-gray-400 text-center py-8 text-sm">Tidak ada kartu. <button onclick="createNewKartuKontrol()" class="text-blue-500 underline">Buat baru</button></p>';
+                document.getElementById('kartu-info')?.classList.add('hidden');
+                document.getElementById('kartu-summary')?.classList.add('hidden');
+                document.getElementById('print-section')?.classList.add('hidden');
+            }
+        }
+
+        function renderKartuKontrol(kartu) {
+            const infoEl = document.getElementById('kartu-info');
+            if (infoEl) infoEl.classList.remove('hidden');
+            document.getElementById('info-no-kartu').textContent = kartu.noKartu;
+            document.getElementById('info-petugas').textContent = kartu.petugasNama;
+            document.getElementById('info-jam').textContent = `${kartu.jamMulai || '-'} - ${kartu.jamSelesai || '-'}`;
+            const statusEl = document.getElementById('info-status');
+            statusEl.textContent = kartu.status;
+            statusEl.className = `px-2 py-1 rounded-full text-xs font-medium ${kartu.status === 'Selesai' ? 'bg-green-100 text-green-700' : kartu.status === 'Proses' ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-700'}`;
+            const summaryEl = document.getElementById('kartu-summary');
+            if (summaryEl) summaryEl.classList.remove('hidden');
+            document.getElementById('summary-jam').value = kartu.jamSelesai || '';
+            document.getElementById('print-section')?.classList.remove('hidden');
+
+            document.getElementById('table-kartu').innerHTML = kartu.items.map((item, i) => {
+                const statusClass = item.status === 'Lunas' ? 'status-lunas' : item.status === 'Janji Bayar' ? 'status-janji' : item.status === 'Belum Lunas' ? 'status-belum' : 'status-tunggakan';
+                return `
+                    <div class="p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex-1" onclick="viewItemDetail('${item.id}')">
+                                <p class="font-medium cursor-pointer">${item.wpNama}</p>
+                                <p class="text-xs text-gray-500 font-mono">${item.npwpd || '-'}</p>
+                            </div>
+                            <span class="px-2 py-1 rounded-full text-xs ${statusClass}">${item.status}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 mb-3 text-sm">
+                            <p class="text-gray-500">Omzet: <span class="font-medium text-gray-800">${formatRupiah(item.omzet)}</span></p>
+                            <p class="text-gray-500">Pajak: <span class="font-bold ${item.status === 'Lunas' ? 'text-green-600' : 'text-red-600'}">${formatRupiah(item.pajak)}</span></p>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <div class="flex gap-2">
+                                ${item.foto ? `<button onclick="event.stopPropagation(); viewPhoto('${item.foto}')" class="text-green-500 p-2 bg-green-50 rounded-lg"><i class="ri-image-line"></i></button>` : '<span class="text-gray-300 p-2"><i class="ri-image-line"></i></span>'}
+                                ${item.paraf ? '<span class="text-green-500 p-2 bg-green-50 rounded-lg"><i class="ri-check-line"></i></span>' : `<button onclick="event.stopPropagation(); openParafModal('${item.id}', '${item.wpNama.replace(/'/g, "\\'")}')" class="text-blue-500 p-2 bg-blue-50 rounded-lg"><i class="ri-draft-line"></i></button>`}
+                                ${item.tglParaf ? `<span class="text-xs text-gray-400 self-center">${new Date(item.tglParaf).toLocaleDateString('id-ID')}</span>` : ''}
+                            </div>
+                            <div class="flex gap-1">
+                                <button onclick="event.stopPropagation(); editItem('${item.id}')" class="text-blue-500 p-2"><i class="ri-edit-line"></i></button>
+                                <button onclick="event.stopPropagation(); deleteItem('${item.id}')" class="text-red-500 p-2"><i class="ri-delete-bin-line"></i></button>
+                            </div>
+                        </div>
+                        ${item.status !== 'Lunas' && item.ketTunggakan ? `<p class="text-xs text-red-600 mt-2 bg-red-50 p-2 rounded-lg"><i class="ri-information-line mr-1"></i>${item.ketTunggakan}</p>` : ''}
+                        ${item.status === 'Janji Bayar' && item.tglJanji ? `<p class="text-xs text-blue-600 mt-1"><i class="ri-calendar-line mr-1"></i>Janji bayar: ${formatDate(item.tglJanji)}</p>` : ''}
+                    </div>`;
+            }).join('') || '<p class="text-gray-400 text-center py-8 text-sm">Belum ada objek. Tap + untuk tambah.</p>';
+
+            const totalOmzet = kartu.items.reduce((sum, i) => sum + i.omzet, 0);
+            const totalPajak = kartu.items.reduce((sum, i) => sum + i.pajak, 0);
+            const totalDibayar = kartu.items.filter(i => i.status === 'Lunas').reduce((sum, i) => sum + i.pajak, 0);
+            document.getElementById('summary-jumlah').textContent = kartu.items.length;
+            document.getElementById('summary-dibayar').textContent = formatRupiah(totalDibayar);
+            document.getElementById('summary-tunggakan').textContent = formatRupiah(totalPajak - totalDibayar);
+        }
+
+        function addItem() {
+            const kartu = kartuKontrol.find(k => k.id === currentKartuId);
+            if (!kartu) return;
+            const wpId = document.getElementById('tambah-wp')?.value;
+            const wp = wajibPajak.find(w => w.id === wpId);
+            if (!wp) { showToast('Pilih WP!', 'warning'); return; }
+            const omzetM = parseFloat(document.getElementById('tambah-omzet-makanan')?.value) || 0;
+            const omzetN = parseFloat(document.getElementById('tambah-omzet-minuman')?.value) || 0;
+            const tarif = parseFloat(document.getElementById('tambah-tarif')?.value) || 10;
+            const status = document.getElementById('tambah-status')?.value;
+            const ket = document.getElementById('tambah-ket')?.value;
+            const omzet = omzetM + omzetN;
+            const pajak = omzet * (tarif / 100);
+            let tglJanji = null, ketTunggakan = null;
+            if (status !== 'Lunas') {
+                tglJanji = document.getElementById('tambah-tgl-janji')?.value || null;
+                ketTunggakan = document.getElementById('tambah-ket-tunggakan')?.value || null;
+            }
+            const existing = kartu.items.find(item => item.wpId === wpId);
+            if (existing) {
+                if (!confirm(`${wp.nama} sudah ada. Update data?`)) return;
+                Object.assign(existing, { omzet, pajak, tarif, status, ket, foto: currentPhotoData, tglJanji, ketTunggakan });
+            } else {
+                kartu.items.push({ id: Date.now().toString(), wpId, npwpd: wp.npwpd, wpNama: wp.nama, alamat: wp.alamat, omzet, tarif, pajak, status, ket, foto: currentPhotoData, tglJanji, ketTunggakan, paraf: null, tglParaf: null });
+            }
+            kartu.status = kartu.items.length > 0 ? 'Proses' : 'Draft';
+            localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
+            autoSyncKartu();
+            renderKartuKontrol(kartu);
+            updateStats();
+            closeModal('tambah');
+            showToast('Data tersimpan!');
+        }
+
+        function editItem(itemId) {
+            const kartu = kartuKontrol.find(k => k.id === currentKartuId);
+            if (!kartu) return;
+            const item = kartu.items.find(i => i.id === itemId);
+            if (!item) return;
+            document.getElementById('edit-item-id').value = itemId;
+            document.getElementById('edit-wp-nama').textContent = item.wpNama;
+            document.getElementById('edit-pajak').textContent = formatRupiah(item.pajak);
+            document.getElementById('edit-status').value = item.status;
+            document.getElementById('edit-tgl-janji').value = item.tglJanji || '';
+            document.getElementById('edit-ket-tunggakan').value = item.ketTunggakan || '';
+            toggleEditTunggakanFields();
+            openModal('edit-item');
+        }
+
+        function saveEditItem() {
+            const kartu = kartuKontrol.find(k => k.id === currentKartuId);
+            if (!kartu) return;
+            const item = kartu.items.find(i => i.id === document.getElementById('edit-item-id')?.value);
+            if (!item) return;
+            item.status = document.getElementById('edit-status')?.value;
+            if (item.status !== 'Lunas') {
+                item.tglJanji = document.getElementById('edit-tgl-janji')?.value || null;
+                item.ketTunggakan = document.getElementById('edit-ket-tunggakan')?.value || null;
+            } else {
+                item.tglJanji = null;
+                item.ketTunggakan = null;
+            }
+            localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
+            autoSyncKartu();
+            renderKartuKontrol(kartu);
+            updateStats();
+            closeModal('edit-item');
+            showToast('Status diperbarui!');
+        }
+
+        function deleteItem(itemId) {
+            if (confirm('Hapus data ini?')) {
+                const kartu = kartuKontrol.find(k => k.id === currentKartuId);
+                if (kartu) {
+                    kartu.items = kartu.items.filter(i => i.id !== itemId);
+                    kartu.status = kartu.items.length > 0 ? 'Proses' : 'Draft';
+                    localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
+                    autoSyncKartu();
+                    renderKartuKontrol(kartu);
+                    updateStats();
+                    showToast('Data dihapus!');
+                }
+            }
+        }
+
+        function saveJamSelesai() {
+            const kartu = kartuKontrol.find(k => k.id === currentKartuId);
+            if (kartu && document.getElementById('summary-jam')) {
+                kartu.jamSelesai = document.getElementById('summary-jam').value;
+                localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
+                autoSyncKartu();
+            }
+        }
+
+        function saveKartuKontrol() {
+            localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
+        }
+
+        function autoSyncKartu() {
+            if (db && firebaseConnected && currentKartuId) {
+                const kartu = kartuKontrol.find(k => k.id === currentKartuId);
+                if (kartu) db.ref('kartuKontrol/' + kartu.id).set(kartu).catch(console.error);
+            }
+        }
+
+        function autoSyncData() {
+            if (db && firebaseConnected && !syncInProgress) {
+                syncInProgress = true;
+                Promise.all([db.ref('wajibPajak').set(wajibPajak), db.ref('petugas').set(petugas)]).catch(console.error).finally(() => { syncInProgress = false; });
+            }
+        }
+
+        function printKartuKontrol() {
+            const kartu = kartuKontrol.find(k => k.id === currentKartuId);
+            if (!kartu) { showToast('Pilih kartu kontrol!', 'warning'); return; }
+            document.getElementById('print-daerah').textContent = settings.daerah || '-';
+            document.getElementById('print-dinas').textContent = settings.dinas.toUpperCase();
+            document.getElementById('print-no-kartu').textContent = kartu.noKartu;
+            document.getElementById('print-tanggal').textContent = formatDate(kartu.tanggal);
+            document.getElementById('print-petugas').textContent = kartu.petugasNama;
+            document.getElementById('print-nip').textContent = kartu.petugasNip;
+            document.getElementById('print-pejabat1').textContent = settings.pejabat1 || '....................';
+            document.getElementById('print-nip1').textContent = settings.nip1 || '....................';
+            document.getElementById('print-pejabat2').textContent = settings.pejabat2 || '....................';
+            document.getElementById('print-nip2').textContent = settings.nip2 || '....................';
+            document.getElementById('print-table-body').innerHTML = kartu.items.map((item, i) => `
+                <tr>
+                    <td class="border border-black px-1 py-1 text-center">${i + 1}</td>
+                    <td class="border border-black px-1 py-1">${item.npwpd || '-'}</td>
+                    <td class="border border-black px-1 py-1">${item.wpNama}</td>
+                    <td class="border border-black px-1 py-1 text-right">${formatRupiah(item.omzet)}</td>
+                    <td class="border border-black px-1 py-1 text-center">${item.tarif}</td>
+                    <td class="border border-black px-1 py-1 text-right">${formatRupiah(item.pajak)}</td>
+                    <td class="border border-black px-1 py-1 text-center ${item.status === 'Lunas' ? 'text-green-700' : 'text-red-700'}">${item.status === 'Lunas' ? '✓' : 'X'}</td>
+                    <td class="border border-black px-1 py-1 text-center">${item.tglParaf ? formatDate(item.tglParaf) : '-'}</td>
+                    <td class="border border-black px-1 py-1 text-center">${item.foto ? '✓' : '-'}</td>
+                    <td class="border border-black px-1 py-1">${item.paraf ? `<img src="${item.paraf}" style="max-height:20px;">` : ''}</td>
+                </tr>`).join('');
+            const totalOmzet = kartu.items.reduce((sum, i) => sum + i.omzet, 0);
+            const totalPajak = kartu.items.reduce((sum, i) => sum + i.pajak, 0);
+            const totalDibayar = kartu.items.filter(i => i.status === 'Lunas').reduce((sum, i) => sum + i.pajak, 0);
+            document.getElementById('print-total-omzet').textContent = formatRupiah(totalOmzet);
+            document.getElementById('print-total-pajak').textContent = formatRupiah(totalPajak);
+            document.getElementById('print-total-dibayar').textContent = formatRupiah(totalDibayar);
+            document.getElementById('print-ttd-petugas').textContent = kartu.petugasNama;
+            document.getElementById('print-ttd-nip').textContent = kartu.petugasNip;
+            window.print();
+        }
+
+        function loadTunggakan() {
+            let tunggakanItems = [];
+            kartuKontrol.forEach(k => {
+                k.items.forEach(item => {
+                    if (item.status !== 'Lunas') tunggakanItems.push({ ...item, tanggal: k.tanggal, petugas: k.petugasNama });
+                });
+            });
+            tunggakanItems.sort((a, b) => a.tanggal.localeCompare(b.tanggal));
+            const badge = document.getElementById('tunggakan-badge');
+            if (tunggakanItems.length > 0) { badge.textContent = tunggakanItems.length; badge.classList.remove('hidden'); } else { badge.classList.add('hidden'); }
+            document.getElementById('tunggakan-count').textContent = `${tunggakanItems.length} item`;
+            document.getElementById('table-tunggakan').innerHTML = tunggakanItems.map((item, i) => `
+                <div class="p-4">
+                    <div class="flex justify-between items-start mb-2">
+                        <div><p class="font-medium">${item.wpNama}</p><p class="text-xs text-gray-500">${formatDate(item.tanggal)}</p></div>
+                        <span class="px-2 py-1 rounded-full text-xs ${item.status === 'Janji Bayar' ? 'status-janji' : 'status-tunggakan'}">${item.status}</span>
+                    </div>
+                    <p class="font-bold text-red-600">${formatRupiah(item.pajak)}</p>
+                    ${item.ketTunggakan ? `<p class="text-xs text-gray-500 mt-1 bg-gray-50 p-2 rounded-lg">${item.ketTunggakan}</p>` : ''}
+                    ${item.tglJanji ? `<p class="text-xs text-blue-600 mt-1"><i class="ri-calendar-line mr-1"></i>Janji: ${formatDate(item.tglJanji)}</p>` : ''}
+                </div>`).join('') || '<p class="text-gray-400 text-center py-8">Tidak ada tunggakan</p>';
+        }
+
+        function loadRiwayat() {
+            const filter = document.getElementById('filter-riwayat')?.value || 'all';
+            let sorted = [...kartuKontrol].sort((a, b) => b.tanggal.localeCompare(a.tanggal));
+            const now = new Date();
+            if (filter === 'month') {
+                sorted = sorted.filter(k => { const d = new Date(k.tanggal); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
+            } else if (filter === 'last_month') {
+                const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1);
+                sorted = sorted.filter(k => { const d = new Date(k.tanggal); return d.getMonth() === lastMonth.getMonth() && d.getFullYear() === lastMonth.getFullYear(); });
+            }
+            document.getElementById('table-riwayat').innerHTML = sorted.map(k => {
+                const totalPajak = k.items.reduce((sum, i) => sum + i.pajak, 0);
+                const totalDibayar = k.items.filter(i => i.status === 'Lunas').reduce((sum, i) => sum + i.pajak, 0);
+                return `
+                    <div class="p-4">
+                        <div class="flex justify-between items-start mb-2">
+                            <div><p class="font-medium">${k.noKartu}</p><p class="text-xs text-gray-500">${formatDate(k.tanggal)} • ${k.petugasNama}</p></div>
+                            <span class="px-2 py-1 rounded-full text-xs ${k.status === 'Selesai' ? 'status-lunas' : k.status === 'Proses' ? 'status-belum' : 'bg-gray-100 text-gray-700'}">${k.status}</span>
+                        </div>
+                        <div class="grid grid-cols-3 gap-2 text-sm mb-3">
+                            <div><p class="text-xs text-gray-500">Objek</p><p class="font-medium">${k.items.length}</p></div>
+                            <div><p class="text-xs text-gray-500">Dibayar</p><p class="font-medium text-green-600">${formatRupiahCompact(totalDibayar)}</p></div>
+                            <div><p class="text-xs text-gray-500">Tunggakan</p><p class="font-medium text-red-600">${formatRupiahCompact(totalPajak - totalDibayar)}</p></div>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="viewKartu('${k.id}')" class="flex-1 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium touch-feedback"><i class="ri-eye-line mr-1"></i> Lihat</button>
+                            <button onclick="printKartuById('${k.id}')" class="flex-1 py-2 bg-green-50 text-green-600 rounded-lg text-sm font-medium touch-feedback"><i class="ri-printer-line mr-1"></i> Cetak</button>
+                        </div>
+                    </div>`;
+            }).join('') || '<p class="text-gray-400 text-center py-8">Belum ada riwayat</p>';
+        }
+
+        function viewKartu(id) {
+            const kartu = kartuKontrol.find(k => k.id === id);
+            if (kartu) {
+                document.getElementById('filter-tanggal').value = kartu.tanggal;
+                currentKartuId = kartu.id;
+                showSection('kartu');
+                loadKartuKontrol();
+            }
+        }
+
+        function printKartuById(id) {
+            currentKartuId = id;
+            printKartuKontrol();
+        }
+
+        function updateStats() {
+            const today = new Date().toISOString().split('T')[0];
+            const todayKartu = kartuKontrol.filter(k => k.tanggal === today);
+            const todayItems = todayKartu.reduce((sum, k) => sum + k.items.length, 0);
+            const todayPajak = todayKartu.reduce((sum, k) => sum + k.items.reduce((s, i) => s + i.pajak, 0), 0);
+            document.getElementById('stat-hari-ini').textContent = todayItems;
+            document.getElementById('stat-pajak-hari').textContent = formatRupiahCompact(todayPajak);
+            const now = new Date();
+            const monthKartu = kartuKontrol.filter(k => { const d = new Date(k.tanggal); return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear(); });
+            const monthPajak = monthKartu.reduce((sum, k) => sum + k.items.reduce((s, i) => s + i.pajak, 0), 0);
+            document.getElementById('stat-bulan').textContent = formatRupiahCompact(monthPajak);
+            let totalTunggakan = 0;
+            kartuKontrol.forEach(k => { k.items.forEach(i => { if (i.status !== 'Lunas') totalTunggakan += i.pajak; }); });
+            document.getElementById('stat-tunggakan').textContent = formatRupiahCompact(totalTunggakan);
+            renderTodayCollection();
+            updateChart();
+        }
+
+        function renderTodayCollection() {
+            const container = document.getElementById('today-collection');
+            const today = new Date().toISOString().split('T')[0];
+            const todayKartu = kartuKontrol.filter(k => k.tanggal === today);
+            const allItems = todayKartu.flatMap(k => k.items);
+            document.getElementById('today-count').textContent = `${allItems.length} objek`;
+            container.innerHTML = allItems.slice(0, 5).map(item => {
+                const statusClass = item.status === 'Lunas' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+                return `
+                    <div class="p-3 flex items-center justify-between cursor-pointer touch-feedback" onclick="viewKartu('${currentKartuId}')">
+                        <div class="flex items-center gap-3">
+                            <div class="w-10 h-10 ${item.status === 'Lunas' ? 'bg-green-100' : 'bg-red-100'} rounded-full flex items-center justify-center">
+                                <i class="ri-restaurant-line ${item.status === 'Lunas' ? 'text-green-500' : 'text-red-500'}"></i>
+                            </div>
+                            <div><p class="font-medium text-sm">${item.wpNama}</p><span class="px-2 py-0.5 rounded-full text-xs ${statusClass}">${item.status}</span></div>
+                        </div>
+                        <p class="font-bold ${item.status === 'Lunas' ? 'text-green-600' : 'text-red-600'}">${formatRupiahCompact(item.pajak)}</p>
+                    </div>`;
+            }).join('') || '<p class="text-gray-400 text-center py-8 text-sm">Belum ada pemungutan</p>';
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('chartPajak')?.getContext('2d');
+            if (!ctx) return;
+            chartPajak = new Chart(ctx, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'Pajak', data: [], backgroundColor: '#3b82f6', borderRadius: 8 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true } } }
+            });
+            updateChart();
+        }
+
+        function updateChart() {
+            if (!chartPajak) return;
+            const labels = [], data = [];
+            for (let i = 6; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const dateStr = d.toISOString().split('T')[0];
+                labels.push(d.toLocaleDateString('id-ID', { weekday: 'short' }));
+                const dayPajak = kartuKontrol.filter(k => k.tanggal === dateStr).reduce((sum, k) => sum + k.items.reduce((s, i) => s + i.pajak, 0), 0);
+                data.push(dayPajak);
+            }
+            chartPajak.data.labels = labels;
+            chartPajak.data.datasets[0].data = data;
+            chartPajak.update();
+        }
+
+        function loadSettings() {
+            document.getElementById('setting-daerah').value = settings.daerah || '';
+            document.getElementById('setting-dinas').value = settings.dinas;
+            document.getElementById('setting-tarif-makanan').value = settings.tarifMakanan;
+            document.getElementById('setting-tarif-minuman').value = settings.tarifMinuman;
+            document.getElementById('setting-pejabat1').value = settings.pejabat1 || '';
+            document.getElementById('setting-nip1').value = settings.nip1 || '';
+            document.getElementById('setting-pejabat2').value = settings.pejabat2 || '';
+            document.getElementById('setting-nip2').value = settings.nip2 || '';
+        }
+
+        function saveSettings() {
+            settings = {
+                daerah: document.getElementById('setting-daerah')?.value || '',
+                dinas: document.getElementById('setting-dinas')?.value || 'Dinas Pendapatan Daerah',
+                tarifMakanan: parseFloat(document.getElementById('setting-tarif-makanan')?.value) || 10,
+                tarifMinuman: parseFloat(document.getElementById('setting-tarif-minuman')?.value) || 10,
+                pejabat1: document.getElementById('setting-pejabat1')?.value || '',
+                nip1: document.getElementById('setting-nip1')?.value || '',
+                pejabat2: document.getElementById('setting-pejabat2')?.value || '',
+                nip2: document.getElementById('setting-nip2')?.value || ''
+            };
+            localStorage.setItem('pbjt-settings', JSON.stringify(settings));
+            if (db && firebaseConnected) db.ref('settings').set(settings);
+            showToast('Pengaturan tersimpan!');
+        }
+
+        function exportData() {
+            const data = { wajibPajak, petugas, kartuKontrol, settings, users, exportDate: new Date().toISOString() };
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `pbjt-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            closeModal('export');
+            showToast('Data berhasil di-export!');
+        }
+
+        function exportReport() {
+            let csv = 'No,No Kartu,Tanggal,Petugas,No,NPWD,Nama WP,Omzet,Tarif,Pajak,Status,Tgl Paraf,Ket Tunggakan\n';
+            let no = 1;
+            kartuKontrol.forEach(k => {
+                k.items.forEach(item => {
+                    csv += `${no++},${k.noKartu},${formatDate(k.tanggal)},${k.petugasNama},${item.npwpd || ''},${item.wpNama},${item.omzet},${item.tarif}%,${item.pajak},${item.status},${item.tglParaf ? formatDate(item.tglParaf) : ''},"${item.ketTunggakan || ''}"\n`;
+                });
+            });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `pbjt-laporan-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            closeModal('export');
+            showToast('Laporan berhasil di-export!');
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.wajibPajak) wajibPajak = data.wajibPajak;
+                    if (data.petugas) petugas = data.petugas;
+                    if (data.kartuKontrol) kartuKontrol = data.kartuKontrol;
+                    if (data.settings) settings = data.settings;
+                    if (data.users) users = data.users;
+                    localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak));
+                    localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
+                    localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
+                    localStorage.setItem('pbjt-settings', JSON.stringify(settings));
+                    localStorage.setItem('pbjt-users', JSON.stringify(users));
+                    renderAll();
+                    showToast('Data berhasil di-import!');
+                } catch (err) {
+                    showToast('File tidak valid!', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function resetData() {
+            if (confirm('Hapus semua data? Tindakan ini tidak bisa dibatalkan!')) {
+                localStorage.clear();
+                wajibPajak = [];
+                petugas = [];
+                kartuKontrol = [];
+                users = [...DEFAULT_USERS];
+                settings = { daerah: '', dinas: 'Dinas Pendapatan Daerah', tarifMakanan: 10, tarifMinuman: 10 };
+                localStorage.setItem('pbjt-users', JSON.stringify(users));
+                renderAll();
+                showToast('Semua data dihapus!');
+            }
+        }
+
+        function formatRupiah(num) { return 'Rp ' + num.toLocaleString('id-ID'); }
+        function formatRupiahCompact(num) {
+            if (num >= 1000000) return 'Rp ' + (num / 1000000).toFixed(1) + ' Jt';
+            if (num >= 1000) return 'Rp ' + (num / 1000).toFixed(1) + ' Rb';
+            return 'Rp ' + num.toLocaleString('id-ID');
+        }
+        function formatDate(str) { return new Date(str).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }); }
+
+        function showToast(msg, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            if (toast && toastMsg) {
+                toastMsg.textContent = msg;
+                toast.className = `fixed bottom-28 left-4 right-4 px-4 py-3 rounded-xl shadow-lg transform transition-all duration-300 z-50 text-center ${type === 'error' ? 'bg-red-500' : type === 'warning' ? 'bg-yellow-500' : 'bg-gray-800'} text-white`;
+                toast.classList.remove('translate-y-20', 'opacity-0');
+                setTimeout(() => toast.classList.add('translate-y-20', 'opacity-0'), 2000);
+            }
+        }
+
+        function renderAll() {
+            renderWP();
+            renderPetugas();
+            updateStats();
+        }
+
+        document.getElementById('form-wp')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const id = document.getElementById('wp-id')?.value;
+            const wpData = {
+                id: id || Date.now().toString(),
+                npwpd: document.getElementById('wp-npwpd')?.value || '',
+                nama: document.getElementById('wp-nama')?.value || '',
+                pemilik: document.getElementById('wp-pemilik')?.value || '',
+                jenis: document.getElementById('wp-jenis')?.value || '',
+                alamat: document.getElementById('wp-alamat')?.value || '',
+                telp: document.getElementById('wp-telp')?.value || '',
+                tarif: parseFloat(document.getElementById('wp-tarif')?.value) || 10
+            };
+            if (id) {
+                const idx = wajibPajak.findIndex(w => w.id === id);
+                if (idx !== -1) wajibPajak[idx] = wpData;
+            } else {
+                wajibPajak.push(wpData);
+            }
+            localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak));
+            autoSyncData();
+            renderWP();
+            closeModal('wp');
+            showToast(id ? 'WP diperbarui!' : 'WP ditambahkan!');
+        });
+
+        document.getElementById('form-petugas')?.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const id = document.getElementById('petugas-id')?.value;
+            const pData = {
+                id: id || Date.now().toString(),
+                nama: document.getElementById('petugas-nama')?.value || '',
+                nip: document.getElementById('petugas-nip')?.value || '',
+                jabatan: document.getElementById('petugas-jabatan')?.value || ''
+            };
+            if (id) {
+                const idx = petugas.findIndex(p => p.id === id);
+                if (idx !== -1) petugas[idx] = pData;
+            } else {
+                petugas.push(pData);
+            }
+            if (document.getElementById('petugas-aktif')?.checked) {
+                activePetugasId = pData.id;
+                localStorage.setItem('pbjt-active-petugas', pData.id);
+                updateActivePetugasInfo();
+            }
+            localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
+            autoSyncData();
+            renderPetugas();
+            closeModal('petugas');
+            showToast(id ? 'Petugas diperbarui!' : 'Petugas ditambahkan!');
+        });
+
+        document.getElementById('form-tambah')?.addEventListener('submit', e => { e.preventDefault(); addItem(); });
+        document.getElementById('form-edit-item')?.addEventListener('submit', e => { e.preventDefault(); saveEditItem(); });
+
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    const type = modal.id.replace('modal-', '');
+                    closeModal(type);
+                }
+            });
+        });
+
+        // Firebase Functions
+        function initFirebase() {
+            if (!firebaseConfig.apiKey || !firebaseConfig.projectId) { updateFirebaseStatus('not_configured'); return; }
+            try {
+                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                db = firebase.database();
+                db.ref('.info/connected').on('value', (snap) => { firebaseConnected = snap.val() === true; updateFirebaseStatus(firebaseConnected ? 'connected' : 'disconnected'); });
+                setupSyncListeners();
+                updateFirebaseStatus('connected');
+            } catch (error) {
+                console.error('Firebase init error:', error);
+                updateFirebaseStatus('error');
+            }
+        }
+
+        function updateFirebaseStatus(status) {
+            const dot = document.getElementById('firebase-status-dot'), text = document.getElementById('firebase-status-text'), headerStatus = document.getElementById('header-sync-status');
+            if (!dot || !text) return;
+            const statusMap = { 'not_configured': { color: 'bg-gray-400', text: 'Belum Dikonfigurasi', icon: 'ri-cloud-off-line' }, 'connecting': { color: 'bg-yellow-500', text: 'Menghubungkan...', icon: 'ri-loader-4-line spinning' }, 'connected': { color: 'bg-green-500', text: 'Terhubung', icon: 'ri-cloud-line' }, 'disconnected': { color: 'bg-yellow-500', text: 'Offline', icon: 'ri-cloud-off-line' }, 'error': { color: 'bg-red-500', text: 'Error Koneksi', icon: 'ri-error-warning-line' }, 'syncing': { color: 'bg-blue-500', text: 'Sinkronisasi...', icon: 'ri-refresh-line spinning' } };
+            const s = statusMap[status] || statusMap['disconnected'];
+            dot.className = `w-3 h-3 rounded-full ${s.color}`;
+            text.textContent = s.text;
+            if (headerStatus) { headerStatus.className = `sync-status ${status === 'connected' ? 'synced' : status === 'syncing' ? 'syncing' : 'pending'}`; headerStatus.innerHTML = `<i class="${s.icon} text-xl"></i>`; }
+        }
+
+        function setupSyncListeners() {
+            if (!db) return;
+            db.ref('wajibPajak').on('value', (snapshot) => { const data = snapshot.val(); if (data) { wajibPajak = Object.values(data); localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak)); renderWP(); } });
+            db.ref('petugas').on('value', (snapshot) => { const data = snapshot.val(); if (data) { petugas = Object.values(data); localStorage.setItem('pbjt-petugas', JSON.stringify(petugas)); renderPetugas(); } });
+            db.ref('kartuKontrol').on('value', (snapshot) => { const data = snapshot.val(); if (data) { kartuKontrol = Object.values(data); localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol)); updateStats(); if (currentKartuId) loadKartuKontrol(); } });
+            db.ref('settings').on('value', (snapshot) => { const data = snapshot.val(); if (data) { settings = data; localStorage.setItem('pbjt-settings', JSON.stringify(settings)); loadSettings(); } });
+        }
+
+        function saveFirebaseConfig() {
+            firebaseConfig = { apiKey: document.getElementById('fb-api-key').value.trim(), authDomain: document.getElementById('fb-auth-domain').value.trim(), projectId: document.getElementById('fb-project-id').value.trim(), databaseURL: document.getElementById('fb-db-url').value.trim() };
+            localStorage.setItem('pbjt-firebase-config', JSON.stringify(firebaseConfig));
+            updateFirebaseStatus('connecting');
+            initFirebase();
+            showToast('Konfigurasi Firebase disimpan!');
+        }
+
+        async function manualSync() {
+            if (!db || !firebaseConnected) { showToast('Firebase tidak terhubung!', 'warning'); return; }
+            if (syncInProgress) { showToast('Sinkronisasi sedang berlangsung...', 'warning'); return; }
+            syncInProgress = true;
+            updateFirebaseStatus('syncing');
+            showSyncIndicator('Sinkronisasi data ke cloud...');
+            try {
+                for (const wp of wajibPajak) await db.ref('wajibPajak/' + wp.id).set(wp);
+                for (const p of petugas) await db.ref('petugas/' + p.id).set(p);
+                for (const k of kartuKontrol) await db.ref('kartuKontrol/' + k.id).set(k);
+                await db.ref('settings').set(settings);
+                showSyncIndicator('Sinkronisasi selesai!');
+                showToast('Data berhasil disinkronkan!');
+                updateFirebaseStatus('connected');
+            } catch (error) {
+                console.error('Sync error:', error);
+                showToast('Gagal sinkronisasi!', 'error');
+                updateFirebaseStatus('error');
+            }
+            setTimeout(() => { hideSyncIndicator(); syncInProgress = false; }, 2000);
+        }
+
+        function testConnection() {
+            if (!db) { showToast('Firebase belum dikonfigurasi!', 'warning'); return; }
+            updateFirebaseStatus('connecting');
+            showToast('Menguji koneksi...');
+            db.ref('.info/connected').once('value', (snap) => {
+                if (snap.val() === true) { showToast('Koneksi berhasil!', 'success'); updateFirebaseStatus('connected'); }
+                else { showToast('Koneksi gagal!', 'error'); updateFirebaseStatus('disconnected'); }
+            }).catch(() => { showToast('Koneksi error!', 'error'); updateFirebaseStatus('error'); });
+        }
+
+        function showSyncIndicator(message) {
+            const indicator = document.getElementById('sync-indicator');
+            const msgEl = document.getElementById('sync-message');
+            if (indicator && msgEl) { msgEl.textContent = message; indicator.classList.remove('hidden'); }
+        }
+
+        function hideSyncIndicator() {
+            const indicator = document.getElementById('sync-indicator');
+            if (indicator) indicator.classList.add('hidden');
+        }
+
+        window.addEventListener('online', () => { checkOnlineStatus(); if (db && firebaseConnected) manualSync(); });
+
+        function addSampleData() {
+            if (wajibPajak.length === 0) {
+                wajibPajak = [
+                    { id: '1', npwpd: '01.123.456.789-001', nama: 'Restoran Sederhana', pemilik: 'Budi Santoso', jenis: 'Restoran', alamat: 'Jl. Merdeka No. 10', tarif: 10 },
+                    { id: '2', npwpd: '01.123.456.789-002', nama: 'Kafe Senja', pemilik: 'Siti Rahayu', jenis: 'Kafe', alamat: 'Jl. Sudirman No. 25', tarif: 10 },
+                    { id: '3', npwpd: '01.123.456.789-003', nama: 'Warung Bu Joko', pemilik: 'Joko Widodo', jenis: 'Warung Makan', alamat: 'Jl. Gatot Subroto No. 5', tarif: 10 }
+                ];
+                localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak));
+            }
+            if (petugas.length === 0) {
+                petugas = [{ id: '1', nama: 'Ahmad Fauzi', nip: '198501012010011001', jabatan: 'Kepala Seksi' }];
+                localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
+                activePetugasId = '1';
+                localStorage.setItem('pbjt-active-petugas', '1');
+            }
+            renderAll();
+            updateActivePetugasInfo();
+        }
+
+        if (wajibPajak.length === 0 || petugas.length === 0) {
+            addSampleData();
+        }
+    </script>
+</body>
+</html>
