@@ -476,7 +476,7 @@
                 <!-- Firebase Settings -->
                 <div class="card p-4 mb-4">
                     <h3 class="font-semibold text-gray-800 mb-4">
-                        <i class="ri-cloud-line mr-1"></i> Sinkronisasi Cloud
+                        <i class="ri-cloud-line mr-1"></i> Sinkronisasi Cloud (Firebase)
                     </h3>
                     <div class="space-y-4">
                         <div>
@@ -486,13 +486,25 @@
                                 <span class="text-sm text-gray-600" id="firebase-status-text">Terkonfigurasi</span>
                             </div>
                         </div>
+                        
+                        <div class="bg-blue-50 rounded-xl p-3 text-xs text-blue-700">
+                            <p class="font-semibold mb-1"><i class="ri-information-line mr-1"></i> Cara Setup Firebase:</p>
+                            <ol class="list-decimal list-inside space-y-1 ml-2">
+                                <li>Buka <a href="https://console.firebase.google.com" target="_blank" class="underline">console.firebase.google.com</a></li>
+                                <li>Buat project baru</li>
+                                <li>Build → Realtime Database → Create Database</li>
+                                <li>Pilih "Start in test mode"</li>
+                                <li>Project Settings → Add Web App → Copy config</li>
+                            </ol>
+                        </div>
+                        
                         <div id="firebase-config-section" class="space-y-3">
                             <div>
-                                <label class="text-sm text-gray-600 mb-1 block">Firebase API Key</label>
+                                <label class="text-sm text-gray-600 mb-1 block">Firebase API Key *</label>
                                 <input type="text" id="fb-api-key" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="AIza...">
                             </div>
                             <div>
-                                <label class="text-sm text-gray-600 mb-1 block">Firebase Project ID</label>
+                                <label class="text-sm text-gray-600 mb-1 block">Firebase Project ID *</label>
                                 <input type="text" id="fb-project-id" class="w-full px-3 py-2 border rounded-lg text-sm" placeholder="your-project-id">
                             </div>
                             <div class="grid grid-cols-2 gap-2">
@@ -1866,30 +1878,44 @@
         function autoSyncKartu() {
             if (db && firebaseConnected && currentKartuId) {
                 const kartu = kartuKontrol.find(k => k.id === currentKartuId);
-                if (kartu) db.ref('kartuKontrol/' + kartu.id).set(kartu).catch(console.error);
+                if (kartu) {
+                    console.log('Auto syncing kartu:', kartu.noKartu);
+                    db.ref('kartuKontrol/' + kartu.id).set(kartu).catch(err => {
+                        console.log('Auto sync kartu error:', err);
+                    });
+                }
+            } else {
+                console.log('Skipping auto sync kartu - db:', !!db, 'connected:', firebaseConnected, 'kartuId:', currentKartuId);
             }
         }
 
         function autoSyncData() {
             // Sync to Firebase only if connected - don't block local operations
+            console.log('Auto sync triggered - db:', !!db, 'connected:', firebaseConnected, 'inProgress:', syncInProgress);
+            
             if (db && firebaseConnected && !syncInProgress) {
                 syncInProgress = true;
+                
+                // Use object format for bulk write
+                const wpData = wajibPajak.reduce((acc, wp) => ({ ...acc, [wp.id]: wp }), {});
+                const petugasData = petugas.reduce((acc, p) => ({ ...acc, [p.id]: p }), {});
+                
                 Promise.all([
-                    db.ref('wajibPajak').set(wajibPajak),
-                    db.ref('petugas').set(petugas)
+                    db.ref('wajibPajak').set(wpData),
+                    db.ref('petugas').set(petugasData)
                 ])
                 .then(() => {
-                    console.log('Data synced to Firebase');
+                    console.log('Auto sync completed successfully');
                 })
                 .catch(err => {
-                    console.log('Firebase sync error:', err);
-                    // Don't show toast for auto-sync errors
+                    console.log('Auto sync error:', err);
+                    // Don't show toast for auto-sync errors to avoid disturbing user
                 })
                 .finally(() => {
                     syncInProgress = false;
                 });
             } else {
-                console.log('Firebase not connected - data saved locally only');
+                console.log('Skipping auto sync - saving locally only');
             }
         }
 
@@ -2321,16 +2347,46 @@
 
         // Firebase Functions
         function initFirebase() {
-            if (!firebaseConfig.apiKey || !firebaseConfig.projectId) { updateFirebaseStatus('not_configured'); return; }
+            console.log('Initializing Firebase...');
+            console.log('Firebase config:', firebaseConfig);
+            
+            if (!firebaseConfig.apiKey || !firebaseConfig.projectId) {
+                console.log('Firebase not configured');
+                updateFirebaseStatus('not_configured');
+                return;
+            }
+            
             try {
-                if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+                if (!firebase.apps.length) {
+                    console.log('Initializing Firebase app...');
+                    firebase.initializeApp(firebaseConfig);
+                    console.log('Firebase app initialized');
+                }
+                
                 db = firebase.database();
-                db.ref('.info/connected').on('value', (snap) => { firebaseConnected = snap.val() === true; updateFirebaseStatus(firebaseConnected ? 'connected' : 'disconnected'); });
+                console.log('Firebase database initialized');
+                
+                db.ref('.info/connected').on('value', (snap) => {
+                    const connected = snap.val() === true;
+                    console.log('Firebase connected:', connected);
+                    firebaseConnected = connected;
+                    updateFirebaseStatus(connected ? 'connected' : 'disconnected');
+                });
+                
                 setupSyncListeners();
-                updateFirebaseStatus('connected');
+                
+                // Check if actually connected after 2 seconds
+                setTimeout(() => {
+                    if (!firebaseConnected) {
+                        console.log('Firebase connection check - still not connected');
+                        updateFirebaseStatus('disconnected');
+                    }
+                }, 2000);
+                
             } catch (error) {
                 console.error('Firebase init error:', error);
                 updateFirebaseStatus('error');
+                showToast('Firebase error: ' + error.message, 'error');
             }
         }
 
@@ -2345,51 +2401,245 @@
         }
 
         function setupSyncListeners() {
-            if (!db) return;
-            db.ref('wajibPajak').on('value', (snapshot) => { const data = snapshot.val(); if (data) { wajibPajak = Object.values(data); localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak)); renderWP(); } });
-            db.ref('petugas').on('value', (snapshot) => { const data = snapshot.val(); if (data) { petugas = Object.values(data); localStorage.setItem('pbjt-petugas', JSON.stringify(petugas)); renderPetugas(); } });
-            db.ref('kartuKontrol').on('value', (snapshot) => { const data = snapshot.val(); if (data) { kartuKontrol = Object.values(data); localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol)); updateStats(); if (currentKartuId) loadKartuKontrol(); } });
-            db.ref('settings').on('value', (snapshot) => { const data = snapshot.val(); if (data) { settings = data; localStorage.setItem('pbjt-settings', JSON.stringify(settings)); loadSettings(); } });
+            if (!db) {
+                console.log('Database not initialized, skipping sync listeners');
+                return;
+            }
+            
+            console.log('Setting up sync listeners...');
+            
+            // Wajib Pajak listener
+            db.ref('wajibPajak').on('value', (snapshot) => {
+                console.log('Received wajibPajak update from Firebase');
+                const data = snapshot.val();
+                if (data) {
+                    const syncedData = Object.values(data);
+                    console.log('Syncing wajibPajak:', syncedData.length, 'items');
+                    wajibPajak = syncedData;
+                    localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak));
+                    renderWP();
+                }
+            });
+            
+            // Petugas listener
+            db.ref('petugas').on('value', (snapshot) => {
+                console.log('Received petugas update from Firebase');
+                const data = snapshot.val();
+                if (data) {
+                    const syncedData = Object.values(data);
+                    console.log('Syncing petugas:', syncedData.length, 'items');
+                    petugas = syncedData;
+                    localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
+                    renderPetugas();
+                    updateActivePetugasInfo();
+                }
+            });
+            
+            // Kartu Kontrol listener
+            db.ref('kartuKontrol').on('value', (snapshot) => {
+                console.log('Received kartuKontrol update from Firebase');
+                const data = snapshot.val();
+                if (data) {
+                    const syncedData = Object.values(data);
+                    console.log('Syncing kartuKontrol:', syncedData.length, 'items');
+                    kartuKontrol = syncedData;
+                    localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
+                    updateStats();
+                    if (currentKartuId) loadKartuKontrol();
+                }
+            });
+            
+            // Settings listener
+            db.ref('settings').on('value', (snapshot) => {
+                console.log('Received settings update from Firebase');
+                const data = snapshot.val();
+                if (data) {
+                    console.log('Syncing settings');
+                    settings = data;
+                    localStorage.setItem('pbjt-settings', JSON.stringify(settings));
+                    loadSettings();
+                }
+            });
+            
+            console.log('Sync listeners setup complete');
         }
 
         function saveFirebaseConfig() {
-            firebaseConfig = { apiKey: document.getElementById('fb-api-key').value.trim(), authDomain: document.getElementById('fb-auth-domain').value.trim(), projectId: document.getElementById('fb-project-id').value.trim(), databaseURL: document.getElementById('fb-db-url').value.trim() };
+            console.log('Saving Firebase config...');
+            const apiKey = document.getElementById('fb-api-key').value.trim();
+            const authDomain = document.getElementById('fb-auth-domain').value.trim();
+            const projectId = document.getElementById('fb-project-id').value.trim();
+            const databaseURL = document.getElementById('fb-db-url').value.trim();
+            
+            console.log('Config inputs:', { apiKey, authDomain, projectId, databaseURL });
+            
+            if (!apiKey || !projectId) {
+                showToast('API Key dan Project ID wajib diisi!', 'error');
+                return;
+            }
+            
+            firebaseConfig = { apiKey, authDomain, projectId, databaseURL };
             localStorage.setItem('pbjt-firebase-config', JSON.stringify(firebaseConfig));
-            updateFirebaseStatus('connecting');
-            initFirebase();
+            console.log('Firebase config saved to localStorage');
+            
+            // Disconnect existing app if any
+            if (firebase.apps.length > 0) {
+                console.log('Deleting existing Firebase app...');
+                firebase.apps[0].delete().then(() => {
+                    console.log('Old Firebase app deleted');
+                    updateFirebaseStatus('connecting');
+                    initFirebase();
+                }).catch(err => {
+                    console.error('Error deleting Firebase app:', err);
+                    initFirebase();
+                });
+            } else {
+                updateFirebaseStatus('connecting');
+                initFirebase();
+            }
+            
             showToast('Konfigurasi Firebase disimpan!');
         }
 
         async function manualSync() {
-            if (!db || !firebaseConnected) { showToast('Firebase tidak terhubung!', 'warning'); return; }
-            if (syncInProgress) { showToast('Sinkronisasi sedang berlangsung...', 'warning'); return; }
+            console.log('Starting manual sync...');
+            
+            if (!db) {
+                console.log('Database not initialized');
+                showToast('Firebase belum dikonfigurasi!', 'warning');
+                return;
+            }
+            
+            if (!firebaseConnected) {
+                console.log('Firebase not connected');
+                showToast('Firebase tidak terhubung! Periksa koneksi internet.', 'warning');
+                return;
+            }
+            
+            if (syncInProgress) {
+                console.log('Sync already in progress');
+                showToast('Sinkronisasi sedang berlangsung...', 'warning');
+                return;
+            }
+            
             syncInProgress = true;
             updateFirebaseStatus('syncing');
             showSyncIndicator('Sinkronisasi data ke cloud...');
+            
             try {
-                for (const wp of wajibPajak) await db.ref('wajibPajak/' + wp.id).set(wp);
-                for (const p of petugas) await db.ref('petugas/' + p.id).set(p);
-                for (const k of kartuKontrol) await db.ref('kartuKontrol/' + k.id).set(k);
+                let synced = 0;
+                let total = wajibPajak.length + petugas.length + kartuKontrol.length + 1;
+                
+                // Sync Wajib Pajak
+                console.log('Syncing wajibPajak:', wajibPajak.length, 'items');
+                if (wajibPajak.length > 0) {
+                    await db.ref('wajibPajak').set(wajibPajak.reduce((acc, wp) => ({ ...acc, [wp.id]: wp }), {}));
+                    synced += wajibPajak.length;
+                    console.log('WajibPajak synced');
+                }
+                
+                // Sync Petugas
+                console.log('Syncing petugas:', petugas.length, 'items');
+                if (petugas.length > 0) {
+                    await db.ref('petugas').set(petugas.reduce((acc, p) => ({ ...acc, [p.id]: p }), {}));
+                    synced += petugas.length;
+                    console.log('Petugas synced');
+                }
+                
+                // Sync Kartu Kontrol
+                console.log('Syncing kartuKontrol:', kartuKontrol.length, 'items');
+                if (kartuKontrol.length > 0) {
+                    await db.ref('kartuKontrol').set(kartuKontrol.reduce((acc, k) => ({ ...acc, [k.id]: k }), {}));
+                    synced += kartuKontrol.length;
+                    console.log('Kartu Kontrol synced');
+                }
+                
+                // Sync Settings
+                console.log('Syncing settings');
                 await db.ref('settings').set(settings);
-                showSyncIndicator('Sinkronisasi selesai!');
-                showToast('Data berhasil disinkronkan!');
+                synced += 1;
+                console.log('Settings synced');
+                
+                showSyncIndicator(`Sinkronisasi selesai! ${synced}/${total} data`);
+                showToast(`Data berhasil disinkronkan! (${synced} item)`);
                 updateFirebaseStatus('connected');
+                console.log('Manual sync completed successfully');
+                
             } catch (error) {
                 console.error('Sync error:', error);
-                showToast('Gagal sinkronisasi!', 'error');
+                console.error('Error details:', {
+                    code: error.code,
+                    message: error.message,
+                    details: error.details
+                });
+                showSyncIndicator('Sinkronisasi gagal!');
+                showToast('Gagal sinkronisasi: ' + error.message, 'error');
                 updateFirebaseStatus('error');
             }
-            setTimeout(() => { hideSyncIndicator(); syncInProgress = false; }, 2000);
+            
+            setTimeout(() => { 
+                hideSyncIndicator(); 
+                syncInProgress = false; 
+                console.log('Sync flag reset');
+            }, 3000);
         }
 
         function testConnection() {
-            if (!db) { showToast('Firebase belum dikonfigurasi!', 'warning'); return; }
+            console.log('Testing Firebase connection...');
+            
+            if (!db) {
+                console.log('Database not initialized');
+                showToast('Firebase belum dikonfigurasi!', 'warning');
+                return;
+            }
+            
             updateFirebaseStatus('connecting');
-            showToast('Menguji koneksi...');
-            db.ref('.info/connected').once('value', (snap) => {
-                if (snap.val() === true) { showToast('Koneksi berhasil!', 'success'); updateFirebaseStatus('connected'); }
-                else { showToast('Koneksi gagal!', 'error'); updateFirebaseStatus('disconnected'); }
-            }).catch(() => { showToast('Koneksi error!', 'error'); updateFirebaseStatus('error'); });
+            showToast('Menguji koneksi ke Firebase...');
+            
+            // Try to write and read a test value
+            const testRef = db.ref('connection_test');
+            
+            testRef.set({ timestamp: Date.now(), test: true })
+                .then(() => {
+                    console.log('Write test successful');
+                    return testRef.once('value');
+                })
+                .then((snapshot) => {
+                    if (snapshot.exists()) {
+                        console.log('Read test successful');
+                        console.log('Firebase is connected and working!');
+                        showToast('Koneksi Firebase berhasil! 🎉', 'success');
+                        updateFirebaseStatus('connected');
+                        firebaseConnected = true;
+                        
+                        // Clean up test data
+                        testRef.remove().catch(err => console.log('Cleanup error:', err));
+                    } else {
+                        console.log('Read test failed - no data');
+                        showToast('Koneksi gagal: Tidak bisa membaca data', 'error');
+                        updateFirebaseStatus('error');
+                    }
+                })
+                .catch((error) => {
+                    console.error('Connection test error:', error);
+                    console.error('Error code:', error.code);
+                    console.error('Error message:', error.message);
+                    
+                    let errorMsg = 'Koneksi gagal!';
+                    if (error.code === 'PERMISSION_DENIED') {
+                        errorMsg = 'Database rules tidak mengizinkan write! Cek Firebase Console.';
+                    } else if (error.code === 'DATABASE_NOT_FOUND') {
+                        errorMsg = 'Database tidak ditemukan! Cek URL.';
+                    } else if (error.code === 'UNAUTHORIZED') {
+                        errorMsg = 'Tidak terautentikasi!';
+                    } else {
+                        errorMsg += ' ' + error.message;
+                    }
+                    
+                    showToast(errorMsg, 'error');
+                    updateFirebaseStatus('error');
+                    firebaseConnected = false;
+                });
         }
 
         function showSyncIndicator(message) {
