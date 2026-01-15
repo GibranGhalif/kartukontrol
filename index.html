@@ -216,6 +216,11 @@
                             </button>
                         </div>
                     </div>
+                    <div id="offline-banner" class="mt-3 p-2 bg-yellow-50 rounded-lg hidden">
+                        <p class="text-xs text-yellow-700 text-center">
+                            <i class="ri-wifi-off-line mr-1"></i> Anda sedang offline - Data tersimpan di lokal
+                        </p>
+                    </div>
                 </div>
 
                 <!-- Quick Stats -->
@@ -1146,52 +1151,114 @@
             return { success: true, message: 'Password berhasil di-reset ke default (admin123)' };
         }
 
-        // Login form handler
-        document.getElementById('login-form')?.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const username = document.getElementById('login-username')?.value;
-            const password = document.getElementById('login-password')?.value;
-            const rememberMe = document.getElementById('remember-me')?.checked;
-            
-            if (login(username, password, rememberMe)) {
-                this.reset();
+        // Login form handler - More reliable approach
+        function setupLoginForm() {
+            const loginForm = document.getElementById('login-form');
+            if (loginForm) {
+                // Remove any existing listeners by cloning
+                const newForm = loginForm.cloneNode(true);
+                loginForm.parentNode.replaceChild(newForm, loginForm);
+                
+                newForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const usernameInput = document.getElementById('login-username');
+                    const passwordInput = document.getElementById('login-password');
+                    const rememberMeInput = document.getElementById('remember-me');
+                    
+                    if (!usernameInput || !passwordInput) {
+                        console.error('Form inputs not found');
+                        return;
+                    }
+                    
+                    const username = usernameInput.value;
+                    const password = passwordInput.value;
+                    const rememberMe = rememberMeInput ? rememberMeInput.checked : false;
+                    
+                    console.log('Login attempt:', { username, rememberMe });
+                    
+                    if (login(username, password, rememberMe)) {
+                        this.reset();
+                    }
+                });
+                console.log('Login form listener registered');
+            } else {
+                console.error('Login form not found');
             }
-        });
+        }
+
+        // Setup login form - will be called from DOMContentLoaded
 
         // Change password form handler
-        document.getElementById('form-change-password')?.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const oldPassword = document.getElementById('old-password')?.value;
-            const newPassword = document.getElementById('new-password')?.value;
-            const confirmPassword = document.getElementById('confirm-password')?.value;
-            
-            if (newPassword !== confirmPassword) {
-                showToast('Konfirmasi password tidak cocok!', 'error');
-                return;
+        function setupChangePasswordForm() {
+            const changePasswordForm = document.getElementById('form-change-password');
+            if (changePasswordForm) {
+                const newForm = changePasswordForm.cloneNode(true);
+                changePasswordForm.parentNode.replaceChild(newForm, changePasswordForm);
+                newForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const oldPasswordInput = document.getElementById('old-password');
+                    const newPasswordInput = document.getElementById('new-password');
+                    const confirmPasswordInput = document.getElementById('confirm-password');
+                    
+                    if (!oldPasswordInput || !newPasswordInput || !confirmPasswordInput) {
+                        showToast('Form tidak lengkap!', 'error');
+                        return;
+                    }
+                    
+                    const oldPassword = oldPasswordInput.value;
+                    const newPassword = newPasswordInput.value;
+                    const confirmPassword = confirmPasswordInput.value;
+                    
+                    if (newPassword !== confirmPassword) {
+                        showToast('Konfirmasi password tidak cocok!', 'error');
+                        return;
+                    }
+                    
+                    const result = changePassword(oldPassword, newPassword);
+                    if (result.success) {
+                        showToast(result.message);
+                        this.reset();
+                    } else {
+                        showToast(result.message, 'error');
+                    }
+                });
+                console.log('Change password form listener registered');
             }
-            
-            const result = changePassword(oldPassword, newPassword);
-            if (result.success) {
-                showToast(result.message);
-                this.reset();
-            } else {
-                showToast(result.message, 'error');
-            }
-        });
+        }
+        setupChangePasswordForm();
 
         // Reset password form handler
-        document.getElementById('form-reset-password')?.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const nip = document.getElementById('reset-nip')?.value;
-            const result = resetPassword(nip);
-            if (result.success) {
-                showToast(result.message);
-                closeModal('forgot-password');
-                this.reset();
-            } else {
-                showToast(result.message, 'error');
+        function setupResetPasswordForm() {
+            const resetPasswordForm = document.getElementById('form-reset-password');
+            if (resetPasswordForm) {
+                const newForm = resetPasswordForm.cloneNode(true);
+                resetPasswordForm.parentNode.replaceChild(newForm, resetPasswordForm);
+                newForm.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    const resetNipInput = document.getElementById('reset-nip');
+                    
+                    if (!resetNipInput) {
+                        showToast('Form tidak lengkap!', 'error');
+                        return;
+                    }
+                    
+                    const nip = resetNipInput.value;
+                    const result = resetPassword(nip);
+                    if (result.success) {
+                        showToast(result.message);
+                        closeModal('forgot-password');
+                        this.reset();
+                    } else {
+                        showToast(result.message, 'error');
+                    }
+                });
+                console.log('Reset password form listener registered');
             }
-        });
+        }
+        setupResetPasswordForm();
 
         // ==================== MAIN APP ====================
         let firebaseConfig = JSON.parse(localStorage.getItem('pbjt-firebase-config')) || { apiKey: "", authDomain: "", projectId: "", databaseURL: "" };
@@ -1204,6 +1271,8 @@
         let currentKartuId = null, currentSignatureItemId = null, chartPajak = null, signaturePad = null, currentPhotoData = null, isOnline = navigator.onLine;
 
         function initApp() {
+            console.log('Initializing app...');
+            setupFormListeners();
             initChart();
             loadSettings();
             initPullToRefresh();
@@ -1215,6 +1284,7 @@
             checkOnlineStatus();
             if ('serviceWorker' in navigator) registerServiceWorker();
             window.addEventListener('offline', checkOnlineStatus);
+            console.log('App initialized');
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -1236,8 +1306,25 @@
         function checkOnlineStatus() {
             isOnline = navigator.onLine;
             const indicator = document.getElementById('offline-indicator');
-            if (!isOnline) indicator.classList.add('show');
-            else indicator.classList.remove('show');
+            const offlineBanner = document.getElementById('offline-banner');
+            
+            if (indicator) {
+                if (!isOnline) {
+                    indicator.classList.add('show');
+                    console.log('Status: Offline');
+                } else {
+                    indicator.classList.remove('show');
+                    console.log('Status: Online');
+                }
+            }
+            
+            if (offlineBanner) {
+                if (!isOnline) {
+                    offlineBanner.classList.remove('hidden');
+                } else {
+                    offlineBanner.classList.add('hidden');
+                }
+            }
         }
 
         function initPullToRefresh() {
@@ -1267,9 +1354,16 @@
             const titles = { dashboard: 'Dashboard', kartu: 'Kartu Kontrol', tunggakan: 'Tunggakan', riwayat: 'Riwayat', wp: 'Data Wajib Pajak', setting: 'Pengaturan' };
             document.getElementById('page-title').textContent = titles[section];
             document.getElementById('fab-button').classList.toggle('hidden', section !== 'kartu');
+            
+            // Load data based on section
             if (section === 'kartu') loadKartuKontrol();
             if (section === 'tunggakan') loadTunggakan();
             if (section === 'riwayat') loadRiwayat();
+            if (section === 'wp') renderWP();
+            if (section === 'setting') {
+                renderPetugas();
+                loadSettings();
+            }
         }
 
         function openModal(type) {
@@ -1281,7 +1375,15 @@
             if (type === 'paraf') initSignaturePad();
             if (type === 'petugas-select') renderPetugasSelect();
             if (type === 'wp') { document.getElementById('form-wp').reset(); document.getElementById('wp-id').value = ''; document.getElementById('wp-tarif').value = '10'; document.getElementById('modal-wp-title').textContent = 'Tambah WP'; }
-            if (type === 'petugas') { document.getElementById('form-petugas').reset(); document.getElementById('petugas-id').value = ''; document.getElementById('modal-petugas-title').textContent = 'Tambah Petugas'; }
+            if (type === 'petugas') { 
+                const formPetugas = document.getElementById('form-petugas');
+                if (formPetugas) formPetugas.reset();
+                const idInput = document.getElementById('petugas-id');
+                if (idInput) idInput.value = '';
+                const titleInput = document.getElementById('modal-petugas-title');
+                if (titleInput) titleInput.textContent = 'Tambah Petugas';
+                console.log('Modal petugas dibuka - mode tambah');
+            }
         }
 
         function closeModal(type) {
@@ -1421,39 +1523,82 @@
         }
 
         function renderPetugas() {
-            document.getElementById('list-petugas').innerHTML = petugas.map(p => `
-                <div class="flex items-center gap-3 p-3 border rounded-xl ${p.id === activePetugasId ? 'border-blue-500 bg-blue-50' : ''}">
+            const listContainer = document.getElementById('list-petugas');
+            if (!listContainer) {
+                console.error('Container list-petugas tidak ditemukan!');
+                return;
+            }
+            
+            console.log('Render petugas, jumlah:', petugas.length);
+            console.log('Data petugas:', petugas);
+            console.log('Active petugas ID:', activePetugasId);
+            
+            if (!petugas || petugas.length === 0) {
+                listContainer.innerHTML = '<p class="text-gray-400 text-center py-4">Belum ada petugas</p>';
+                return;
+            }
+            
+            listContainer.innerHTML = petugas.map(p => {
+                const isActive = p.id === activePetugasId;
+                console.log(`Petugas ${p.nama} (${p.id}) active: ${isActive}`);
+                return `
+                <div class="flex items-center gap-3 p-3 border rounded-xl ${isActive ? 'border-blue-500 bg-blue-50' : ''}">
                     <div class="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center"><i class="ri-user-tie-line text-blue-500"></i></div>
-                    <div class="flex-1"><p class="font-medium text-sm">${p.nama}</p><p class="text-xs text-gray-500">NIP: ${p.nip}</p></div>
+                    <div class="flex-1">
+                        <p class="font-medium text-sm">${p.nama || '-'}</p>
+                        <p class="text-xs text-gray-500">NIP: ${p.nip || '-'}</p>
+                        ${p.jabatan ? `<p class="text-xs text-gray-400">${p.jabatan}</p>` : ''}
+                    </div>
                     <div class="flex gap-1">
                         <button onclick="editPetugas('${p.id}')" class="text-blue-500 p-2"><i class="ri-edit-line"></i></button>
                         <button onclick="deletePetugas('${p.id}')" class="text-red-500 p-2"><i class="ri-delete-bin-line"></i></button>
                     </div>
-                </div>`).join('') || '<p class="text-gray-400 text-center py-4">Belum ada petugas</p>';
+                </div>`;
+            }).join('');
+            
+            console.log('Render petugas selesai');
         }
 
         function editPetugas(id) {
+            console.log('Edit petugas:', id);
             const p = petugas.find(x => x.id === id);
+            console.log('Petugas ditemukan:', p);
             if (p) {
-                document.getElementById('petugas-id').value = p.id;
-                document.getElementById('petugas-nama').value = p.nama;
-                document.getElementById('petugas-nip').value = p.nip;
-                document.getElementById('petugas-jabatan').value = p.jabatan || '';
-                document.getElementById('petugas-aktif').checked = p.id === activePetugasId;
-                document.getElementById('modal-petugas-title').textContent = 'Edit Petugas';
+                const idInput = document.getElementById('petugas-id');
+                const namaInput = document.getElementById('petugas-nama');
+                const nipInput = document.getElementById('petugas-nip');
+                const jabatanInput = document.getElementById('petugas-jabatan');
+                const aktifInput = document.getElementById('petugas-aktif');
+                const titleInput = document.getElementById('modal-petugas-title');
+                
+                if (idInput) idInput.value = p.id;
+                if (namaInput) namaInput.value = p.nama || '';
+                if (nipInput) nipInput.value = p.nip || '';
+                if (jabatanInput) jabatanInput.value = p.jabatan || '';
+                if (aktifInput) aktifInput.checked = p.id === activePetugasId;
+                if (titleInput) titleInput.textContent = 'Edit Petugas';
+                
                 openModal('petugas');
+                console.log('Modal petugas dibuka');
+            } else {
+                console.error('Petugas tidak ditemukan:', id);
             }
         }
 
         function deletePetugas(id) {
+            console.log('Delete petugas:', id);
             if (confirm('Hapus petugas ini?')) {
                 petugas = petugas.filter(p => p.id !== id);
-                if (activePetugasId === id) activePetugasId = '';
+                if (activePetugasId === id) {
+                    activePetugasId = '';
+                    localStorage.removeItem('pbjt-active-petugas');
+                }
                 localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
                 autoSyncData();
                 renderPetugas();
                 updateActivePetugasInfo();
                 showToast('Petugas dihapus!');
+                console.log('Petugas dihapus, sisa:', petugas.length);
             }
         }
 
@@ -1651,7 +1796,7 @@
             renderKartuKontrol(kartu);
             updateStats();
             closeModal('tambah');
-            showToast('Data tersimpan!');
+            showToast('Data tersimpan!' + (isOnline ? '' : ' (Mode Offline)'));
         }
 
         function editItem(itemId) {
@@ -1726,9 +1871,25 @@
         }
 
         function autoSyncData() {
+            // Sync to Firebase only if connected - don't block local operations
             if (db && firebaseConnected && !syncInProgress) {
                 syncInProgress = true;
-                Promise.all([db.ref('wajibPajak').set(wajibPajak), db.ref('petugas').set(petugas)]).catch(console.error).finally(() => { syncInProgress = false; });
+                Promise.all([
+                    db.ref('wajibPajak').set(wajibPajak),
+                    db.ref('petugas').set(petugas)
+                ])
+                .then(() => {
+                    console.log('Data synced to Firebase');
+                })
+                .catch(err => {
+                    console.log('Firebase sync error:', err);
+                    // Don't show toast for auto-sync errors
+                })
+                .finally(() => {
+                    syncInProgress = false;
+                });
+            } else {
+                console.log('Firebase not connected - data saved locally only');
             }
         }
 
@@ -2025,70 +2186,138 @@
             updateStats();
         }
 
-        document.getElementById('form-wp')?.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const id = document.getElementById('wp-id')?.value;
-            const wpData = {
-                id: id || Date.now().toString(),
-                npwpd: document.getElementById('wp-npwpd')?.value || '',
-                nama: document.getElementById('wp-nama')?.value || '',
-                pemilik: document.getElementById('wp-pemilik')?.value || '',
-                jenis: document.getElementById('wp-jenis')?.value || '',
-                alamat: document.getElementById('wp-alamat')?.value || '',
-                telp: document.getElementById('wp-telp')?.value || '',
-                tarif: parseFloat(document.getElementById('wp-tarif')?.value) || 10
-            };
-            if (id) {
-                const idx = wajibPajak.findIndex(w => w.id === id);
-                if (idx !== -1) wajibPajak[idx] = wpData;
-            } else {
-                wajibPajak.push(wpData);
-            }
-            localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak));
-            autoSyncData();
-            renderWP();
-            closeModal('wp');
-            showToast(id ? 'WP diperbarui!' : 'WP ditambahkan!');
+        // Initialize all form listeners immediately when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM Content Loaded');
+            setupLoginForm();
+            checkSession();
         });
 
-        document.getElementById('form-petugas')?.addEventListener('submit', function(e) {
-            e.preventDefault();
-            const id = document.getElementById('petugas-id')?.value;
-            const pData = {
-                id: id || Date.now().toString(),
-                nama: document.getElementById('petugas-nama')?.value || '',
-                nip: document.getElementById('petugas-nip')?.value || '',
-                jabatan: document.getElementById('petugas-jabatan')?.value || ''
-            };
-            if (id) {
-                const idx = petugas.findIndex(p => p.id === id);
-                if (idx !== -1) petugas[idx] = pData;
+        function setupFormListeners() {
+            console.log('Setting up form listeners...');
+            
+            // Form Petugas - Urutkan paling atas
+            const formPetugas = document.getElementById('form-petugas');
+            if (formPetugas) {
+                console.log('Found form-petugas, adding listener');
+                const newFormPetugas = formPetugas.cloneNode(true);
+                formPetugas.parentNode.replaceChild(newFormPetugas, formPetugas);
+                newFormPetugas.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Form petugas submit triggered');
+                    try {
+                        const id = document.getElementById('petugas-id').value;
+                        const nama = document.getElementById('petugas-nama').value;
+                        const nip = document.getElementById('petugas-nip').value;
+                        const jabatan = document.getElementById('petugas-jabatan').value;
+                        console.log('Petugas data:', { id, nama, nip, jabatan });
+                        
+                        if (!nama || !nip) {
+                            showToast('Nama dan NIP harus diisi!', 'error');
+                            return;
+                        }
+                        
+                        const pData = { id: id || Date.now().toString(), nama: nama || '', nip: nip || '', jabatan: jabatan || '' };
+                        if (id) {
+                            const idx = petugas.findIndex(p => p.id === id);
+                            if (idx !== -1) petugas[idx] = pData;
+                        } else {
+                            petugas.push(pData);
+                        }
+                        if (document.getElementById('petugas-aktif').checked) {
+                            activePetugasId = pData.id;
+                            localStorage.setItem('pbjt-active-petugas', pData.id);
+                            updateActivePetugasInfo();
+                        }
+                        localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
+                        autoSyncData();
+                        renderPetugas();
+                        closeModal('petugas');
+                        showToast(id ? 'Petugas diperbarui!' : 'Petugas ditambahkan!' + (isOnline ? '' : ' (Mode Offline)'));
+                    } catch (err) {
+                        console.error('Error saving petugas:', err);
+                        showToast('Gagal menyimpan data!', 'error');
+                    }
+                });
+                console.log('Form petugas listener registered');
             } else {
-                petugas.push(pData);
+                console.error('Form petugas not found');
             }
-            if (document.getElementById('petugas-aktif')?.checked) {
-                activePetugasId = pData.id;
-                localStorage.setItem('pbjt-active-petugas', pData.id);
-                updateActivePetugasInfo();
+            
+            // Form Wajib Pajak
+            const formWP = document.getElementById('form-wp');
+            if (formWP) {
+                const newFormWP = formWP.cloneNode(true);
+                formWP.parentNode.replaceChild(newFormWP, formWP);
+                newFormWP.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Form WP submit triggered');
+                    const id = document.getElementById('wp-id').value;
+                    const npwpd = document.getElementById('wp-npwpd').value;
+                    const nama = document.getElementById('wp-nama').value;
+                    const pemilik = document.getElementById('wp-pemilik').value;
+                    const jenis = document.getElementById('wp-jenis').value;
+                    const alamat = document.getElementById('wp-alamat').value;
+                    const telp = document.getElementById('wp-telp').value;
+                    const tarif = document.getElementById('wp-tarif').value;
+                    if (!nama || !npwpd || !pemilik || !alamat) {
+                        showToast('Data wajib diisi lengkap!', 'error');
+                        return;
+                    }
+                    const wpData = { id: id || Date.now().toString(), npwpd: npwpd || '', nama: nama || '', pemilik: pemilik || '', jenis: jenis || '', alamat: alamat || '', telp: telp || '', tarif: parseFloat(tarif) || 10 };
+                    if (id) {
+                        const idx = wajibPajak.findIndex(w => w.id === id);
+                        if (idx !== -1) wajibPajak[idx] = wpData;
+                    } else {
+                        wajibPajak.push(wpData);
+                    }
+                    try {
+                        localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak));
+                        autoSyncData();
+                        renderWP();
+                        closeModal('wp');
+                        showToast(id ? 'WP diperbarui!' : 'WP ditambahkan!' + (isOnline ? '' : ' (Mode Offline)'));
+                    } catch (err) {
+                        console.error('Error saving to localStorage:', err);
+                        showToast('Gagal menyimpan data!', 'error');
+                    }
+                });
+                console.log('Form WP listener registered');
             }
-            localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
-            autoSyncData();
-            renderPetugas();
-            closeModal('petugas');
-            showToast(id ? 'Petugas diperbarui!' : 'Petugas ditambahkan!');
-        });
+            
+            // Form Tambah Objek
+            const formTambah = document.getElementById('form-tambah');
+            if (formTambah) {
+                formTambah.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    addItem();
+                });
+            }
+            
+            // Form Edit Item
+            const formEditItem = document.getElementById('form-edit-item');
+            if (formEditItem) {
+                formEditItem.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    saveEditItem();
+                });
+            }
+        }
 
-        document.getElementById('form-tambah')?.addEventListener('submit', e => { e.preventDefault(); addItem(); });
-        document.getElementById('form-edit-item')?.addEventListener('submit', e => { e.preventDefault(); saveEditItem(); });
-
-        document.querySelectorAll('.modal').forEach(modal => {
-            modal.addEventListener('click', (e) => {
-                if (e.target === modal) {
-                    const type = modal.id.replace('modal-', '');
-                    closeModal(type);
-                }
+        // Modal click to close
+        function setupModalCloseListeners() {
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        const type = modal.id.replace('modal-', '');
+                        closeModal(type);
+                    }
+                });
             });
-        });
+        }
+        setupModalCloseListeners();
 
         // Firebase Functions
         function initFirebase() {
