@@ -169,6 +169,10 @@
                     </div>
                 </div>
 
+                <button onclick="showDetailKartu(currentKartuId)" id="btn-detail-kartu" class="w-full mb-4 bg-purple-600 text-white py-3 rounded-xl font-medium hover:bg-purple-700 transition hidden flex items-center justify-center gap-2">
+                    <i class="ri-eye-line"></i> Lihat Detail Kartu
+                </button>
+
                 <div id="kartu-list" class="space-y-3"></div>
 
                 <div id="kartu-actions" class="mt-4 hidden">
@@ -609,6 +613,19 @@
         </div>
     </div>
 
+    <!-- Modal Detail Kartu -->
+    <div id="modal-detail" class="modal hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+        <div class="modal-content bg-white w-full max-w-lg rounded-t-2xl max-h-[90vh] overflow-y-auto">
+            <div class="p-4 border-b border-gray-100 flex justify-between items-center sticky top-0 bg-white z-10">
+                <h3 class="font-bold text-lg text-gray-800">Detail Kartu Kontrol</h3>
+                <button onclick="closeModal('detail')" class="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-gray-500 hover:bg-gray-200">
+                    <i class="ri-close-line text-xl"></i>
+                </button>
+            </div>
+            <div id="detail-content" class="p-4 space-y-4"></div>
+        </div>
+    </div>
+
     <!-- Toast -->
     <div id="toast" class="fixed top-4 left-4 right-4 bg-gray-800 text-white px-4 py-3 rounded-xl shadow-lg hidden z-50 text-center font-medium"></div>
 
@@ -984,12 +1001,14 @@
                 document.getElementById('kartu-actions').classList.remove('hidden');
                 document.getElementById('jam-selesai').value = kartu.jamSelesai || '';
                 document.getElementById('fab-btn').classList.remove('hidden');
+                document.getElementById('btn-detail-kartu').classList.remove('hidden');
                 renderKartuItems(kartu);
             } else {
                 currentKartuId = null;
                 document.getElementById('kartu-info').classList.add('hidden');
                 document.getElementById('kartu-actions').classList.add('hidden');
                 document.getElementById('fab-btn').classList.add('hidden');
+                document.getElementById('btn-detail-kartu').classList.add('hidden');
                 document.getElementById('kartu-list').innerHTML = '<div class="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100"><p class="text-gray-400">Belum ada kartu. Klik "Buat Baru"</p></div>';
             }
         }
@@ -1245,6 +1264,144 @@
         function showFoto(foto) {
             document.getElementById('foto-preview').src = foto;
             openModal('foto');
+        }
+
+        // Detail Kartu Kontrol
+        function showDetailKartu(kartuId) {
+            const kartu = kartuKontrol.find(k => k.id === kartuId);
+            if (!kartu) return;
+
+            const statusConfig = {
+                'Lunas': { bg: 'bg-green-100', text: 'text-green-700', icon: '✅' },
+                'Belum Lunas': { bg: 'bg-red-100', text: 'text-red-700', icon: '❌' },
+                'Janji Bayar': { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: '📅' },
+                'Tunggakan': { bg: 'bg-orange-100', text: 'text-orange-700', icon: '⚠️' }
+            };
+
+            const totalOmzet = kartu.items.reduce((s, i) => s + i.omzet, 0);
+            const totalPajak = kartu.items.reduce((s, i) => s + i.pajak, 0);
+            const lunas = kartu.items.filter(i => i.status === 'Lunas').length;
+            const tunggakan = kartu.items.filter(i => i.status !== 'Lunas').length;
+
+            let html = `
+                <!-- Info Kartu -->
+                <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-4 text-white">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-xs text-blue-100">No. Kartu</p>
+                            <p class="font-bold">${kartu.noKartu}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-blue-100">Tanggal</p>
+                            <p class="font-bold">${formatDate(kartu.tanggal)}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-blue-100">Jam</p>
+                            <p class="font-bold">${kartu.jamMulai} - ${kartu.jamSelesai || '-'}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-blue-100">Petugas</p>
+                            <p class="font-bold">${kartu.petugasNama}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Ringkasan -->
+                <div class="grid grid-cols-4 gap-2">
+                    <div class="bg-white rounded-xl p-3 text-center border border-gray-100">
+                        <p class="text-2xl font-bold text-blue-600">${kartu.items.length}</p>
+                        <p class="text-xs text-gray-500">Objek</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-3 text-center border border-gray-100">
+                        <p class="text-xl font-bold text-green-600">${formatRupiahCompact(totalPajak)}</p>
+                        <p class="text-xs text-gray-500">Total Pajak</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-3 text-center border border-gray-100">
+                        <p class="text-2xl font-bold text-green-600">${lunas}</p>
+                        <p class="text-xs text-gray-500">Lunas</p>
+                    </div>
+                    <div class="bg-white rounded-xl p-3 text-center border border-gray-100">
+                        <p class="text-2xl font-bold text-red-600">${tunggakan}</p>
+                        <p class="text-xs text-gray-500">Tunggakan</p>
+                    </div>
+                </div>
+
+                <!-- Daftar Objek -->
+                <div>
+                    <h4 class="font-medium text-gray-700 mb-3">Daftar Objek Pemungutan</h4>
+                    <div class="space-y-3">
+            `;
+
+            kartu.items.forEach((item, idx) => {
+                const cfg = statusConfig[item.status] || statusConfig['Lunas'];
+                html += `
+                    <div class="bg-white rounded-xl p-4 border border-gray-100">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">${idx + 1}</span>
+                                    <p class="font-bold text-gray-800">${item.wpNama}</p>
+                                </div>
+                                <p class="text-sm text-gray-500">${item.npwpd || '-'}</p>
+                            </div>
+                            <span class="px-3 py-1 rounded-full text-xs font-medium ${cfg.bg} ${cfg.text}">${cfg.icon} ${item.status}</span>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 mb-3 text-sm">
+                            <div class="bg-gray-50 rounded-lg p-2">
+                                <p class="text-xs text-gray-500">Omzet</p>
+                                <p class="font-bold text-gray-800">${formatRupiah(item.omzet)}</p>
+                            </div>
+                            <div class="bg-blue-50 rounded-lg p-2">
+                                <p class="text-xs text-blue-500">Pajak</p>
+                                <p class="font-bold text-blue-600">${formatRupiah(item.pajak)}</p>
+                            </div>
+                        </div>
+
+                        <!-- Foto Bukti -->
+                        ${item.foto ? `
+                        <div class="mb-3">
+                            <p class="text-sm text-gray-600 mb-2"><i class="ri-image-line"></i> Foto Bukti Pemungutan</p>
+                            <div class="flex gap-2 overflow-x-auto pb-2">
+                                <div onclick="showFoto('${item.foto}')" class="flex-shrink-0 w-32 h-32 bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition">
+                                    <img src="${item.foto}" class="w-full h-full object-cover">
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        <!-- Paraf -->
+                        ${item.paraf ? `
+                        <div class="mb-3">
+                            <p class="text-sm text-gray-600 mb-2"><i class="ri-pen-nib-line"></i> Paraf Wajib Pajak</p>
+                            <div class="flex gap-2">
+                                <div class="flex-shrink-0 w-24 h-16 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                                    <img src="${item.paraf}" class="w-full h-full object-contain bg-white">
+                                </div>
+                                <div class="flex-1 text-sm">
+                                    <p class="text-gray-600">Tgl: ${formatDate(item.tglParaf)}</p>
+                                </div>
+                            </div>
+                        </div>
+                        ` : ''}
+
+                        <!-- Keterangan -->
+                        ${item.ket ? `
+                        <div class="bg-yellow-50 rounded-lg p-3">
+                            <p class="text-sm text-yellow-700"><i class="ri-file-text-line"></i> ${item.ket}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+
+            html += `
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('detail-content').innerHTML = html;
+            openModal('detail');
         }
 
         // WP
@@ -1881,6 +2038,11 @@
             updateStats();
             renderChart();
             updateTunggakanBadge();
+        }
+
+        function printKartuById(kartuId) {
+            currentKartuId = kartuId;
+            printKartu();
         }
 
         // Format functions
