@@ -867,8 +867,11 @@
                 btn.classList.remove('text-gray-400');
             }
             document.getElementById('page-title').textContent = { dashboard: 'Dashboard', kartu: 'Kartu Kontrol', tunggakan: 'Tunggakan', wp: 'Data WP', setting: 'Pengaturan' }[sec];
-            document.getElementById('fab-btn').classList.toggle('hidden', sec !== 'kartu');
-            if (sec === 'kartu') loadKartuKontrol();
+            document.getElementById('fab-btn').classList.add('hidden'); // Sembunyikan FAB dulu
+            
+            if (sec === 'kartu') {
+                loadKartuKontrol(); // loadKartuKontrol akan menampilkan FAB jika kartu ada
+            }
             if (sec === 'tunggakan') loadTunggakan();
             if (sec === 'wp') renderWP();
             if (sec === 'setting') { renderPetugas(); loadSettings(); loadFirebaseConfig(); }
@@ -906,6 +909,33 @@
             openModal('reset-password');
         }
 
+        // Fungsi untuk membuka modal tambah objek
+        function openTambahModal() {
+            // Cek apakah ada kartu kontrol aktif untuk hari ini
+            const tgl = document.getElementById('filter-tanggal').value;
+            const kartu = kartuKontrol.find(k => k.tanggal === tgl);
+            
+            if (!kartu) {
+                showToast('Buat kartu kontrol dulu dengan klik tombol "Buat Baru"!');
+                return;
+            }
+            
+            if (!currentKartuId) {
+                showToast('Kartu kontrol tidak ditemukan!');
+                return;
+            }
+            
+            // Cek apakah ada petugas aktif
+            const p = getActivePetugas();
+            if (!p) {
+                showToast('Set petugas aktif terlebih dahulu!');
+                return;
+            }
+            
+            // Buka modal
+            openModal('tambah');
+        }
+
         // Kartu Kontrol
         function createNewKartu() {
             const tgl = document.getElementById('filter-tanggal').value;
@@ -932,8 +962,10 @@
             kartuKontrol.push(kartu);
             saveKartu();
             currentKartuId = kartu.id;
+            // Tampilkan tombol FAB setelah kartu dibuat
+            document.getElementById('fab-btn').classList.remove('hidden');
             loadKartuKontrol();
-            showToast('Kartu kontrol dibuat!');
+            showToast('Kartu kontrol dibuat! Silakan tambah objek pemungutan.');
         }
 
         function loadKartuKontrol() {
@@ -951,11 +983,13 @@
                 document.getElementById('info-tunggakan').textContent = tunggakan;
                 document.getElementById('kartu-actions').classList.remove('hidden');
                 document.getElementById('jam-selesai').value = kartu.jamSelesai || '';
+                document.getElementById('fab-btn').classList.remove('hidden');
                 renderKartuItems(kartu);
             } else {
                 currentKartuId = null;
                 document.getElementById('kartu-info').classList.add('hidden');
                 document.getElementById('kartu-actions').classList.add('hidden');
+                document.getElementById('fab-btn').classList.add('hidden');
                 document.getElementById('kartu-list').innerHTML = '<div class="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100"><p class="text-gray-400">Belum ada kartu. Klik "Buat Baru"</p></div>';
             }
         }
