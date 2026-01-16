@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Kartu Kontrol PBJT</title>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
     <style>
         body { font-family: system-ui, -apple-system, sans-serif; }
@@ -317,12 +318,17 @@
                             <i class="ri-database-line text-blue-600"></i>
                             <div class="font-medium">Data</div>
                         </div>
-                        <div class="flex gap-2">
-                            <button onclick="exportData()" class="flex-1 bg-green-100 text-green-700 py-2 rounded-lg font-medium">Export</button>
-                            <label class="flex-1 bg-blue-100 text-blue-700 py-2 rounded-lg text-center cursor-pointer font-medium">
-                                Import <input type="file" accept=".json" class="hidden" onchange="importData(event)">
-                            </label>
+                        <div class="grid grid-cols-2 gap-2 mb-2">
+                            <button onclick="exportToExcel()" class="bg-green-100 text-green-700 py-2 rounded-lg font-medium flex items-center justify-center gap-2 text-sm">
+                                <i class="ri-file-excel-2-line"></i> Export Excel
+                            </button>
+                            <button onclick="exportData()" class="bg-blue-100 text-blue-700 py-2 rounded-lg font-medium flex items-center justify-center gap-2 text-sm">
+                                <i class="ri-file-text-line"></i> Export JSON
+                            </button>
                         </div>
+                        <label class="w-full bg-purple-100 text-purple-700 py-2 rounded-lg text-center cursor-pointer font-medium flex items-center justify-center gap-2 text-sm">
+                            <i class="ri-upload-2-line"></i> Import JSON <input type="file" accept=".json" class="hidden" onchange="importData(event)">
+                        </label>
                         <button onclick="resetData()" class="w-full mt-2 bg-red-100 text-red-700 py-2 rounded-lg text-sm">Reset Semua Data</button>
                     </div>
                 </div>
@@ -1830,6 +1836,100 @@
             };
             localStorage.setItem('pbjt-settings', JSON.stringify(settings));
             showToast('Pengaturan tersimpan!');
+        }
+
+        function exportToExcel() {
+            try {
+                // Check if XLSX library is available
+                if (typeof XLSX === 'undefined') {
+                    showToast('Library Excel belum dimuat. Silakan refresh halaman.');
+                    return;
+                }
+
+                // Create workbook
+                const wb = XLSX.utils.book_new();
+
+                // Sheet 1: Data Wajib Pajak
+                const wpData = wajibPajak.map((wp, i) => ({
+                    'No': i + 1,
+                    'NPWPD': wp.npwpd,
+                    'Nama Usaha': wp.nama,
+                    'Nama Pemilik': wp.pemilik,
+                    'Alamat': wp.alamat,
+                    'Tarif Pajak (%)': wp.tarif
+                }));
+                const wsWP = XLSX.utils.json_to_sheet(wpData);
+                XLSX.utils.book_append_sheet(wb, wsWP, 'Wajib Pajak');
+
+                // Sheet 2: Data Petugas
+                const petugasData = petugas.map((p, i) => ({
+                    'No': i + 1,
+                    'Nama': p.nama,
+                    'NIP': p.nip,
+                    'Status': p.id === activePetugasId ? 'Aktif' : 'Tidak Aktif'
+                }));
+                const wsPetugas = XLSX.utils.json_to_sheet(petugasData);
+                XLSX.utils.book_append_sheet(wb, wsPetugas, 'Petugas');
+
+                // Sheet 3: Kartu Kontrol
+                const kartuRows = [];
+                kartuKontrol.forEach(kartu => {
+                    kartu.items.forEach((item, idx) => {
+                        kartuRows.push({
+                            'No. Kartu': kartu.noKartu,
+                            'Tanggal': formatDate(kartu.tanggal),
+                            'Jam': kartu.jamMulai + ' - ' + (kartu.jamSelesai || '-'),
+                            'Petugas': kartu.petugasNama,
+                            'NIP Petugas': kartu.petugasNip,
+                            'No': idx + 1,
+                            'NPWPD': item.npwpd || '-',
+                            'Nama WP': item.wpNama,
+                            'Omzet': formatRupiah(item.omzet),
+                            'Tarif (%)': item.tarif,
+                            'Pajak': formatRupiah(item.pajak),
+                            'Status': item.status,
+                            'Tanggal Paraf': item.tglParaf ? formatDate(item.tglParaf) : '-',
+                            'Ada Foto': item.foto ? 'Ya' : 'Tidak',
+                            'Keterangan': item.ket || '-',
+                            'No. Telp': item.noTelp || '-',
+                            'Janji Bayar': item.tglJanji ? formatDate(item.tglJanji) : '-'
+                        });
+                    });
+                });
+                const wsKartu = XLSX.utils.json_to_sheet(kartuRows);
+                XLSX.utils.book_append_sheet(wb, wsKartu, 'Kartu Kontrol');
+
+                // Sheet 4: Ringkasan
+                const totalOmzet = kartuKontrol.reduce((s, k) => s + k.items.reduce((a, i) => a + i.omzet, 0), 0);
+                const totalPajak = kartuKontrol.reduce((s, k) => s + k.items.reduce((a, i) => a + i.pajak, 0), 0);
+                const totalLunas = kartuKontrol.reduce((s, k) => s + k.items.filter(i => i.status === 'Lunas').length, 0);
+                const totalTunggakan = kartuKontrol.reduce((s, k) => s + k.items.filter(i => i.status !== 'Lunas').reduce((a, i) => a + i.pajak, 0), 0);
+
+                const ringkasanData = [
+                    { 'Keterangan': 'Jumlah Wajib Pajak', 'Nilai': wajibPajak.length },
+                    { 'Keterangan': 'Jumlah Petugas', 'Nilai': petugas.length },
+                    { 'Keterangan': 'Jumlah Kartu Kontrol', 'Nilai': kartuKontrol.length },
+                    { 'Keterangan': 'Total Transaksi', 'Nilai': kartuKontrol.reduce((s, k) => s + k.items.length, 0) },
+                    { 'Keterangan': 'Total Omzet', 'Nilai': formatRupiah(totalOmzet) },
+                    { 'Keterangan': 'Total Pajak', 'Nilai': formatRupiah(totalPajak) },
+                    { 'Keterangan': 'Transaksi Lunas', 'Nilai': totalLunas },
+                    { 'Keterangan': 'Total Tunggakan', 'Nilai': formatRupiah(totalTunggakan) },
+                    { 'Keterangan': 'Tanggal Export', 'Nilai': new Date().toLocaleString('id-ID') }
+                ];
+                const wsRingkasan = XLSX.utils.json_to_sheet(ringkasanData);
+                XLSX.utils.book_append_sheet(wb, wsRingkasan, 'Ringkasan');
+
+                // Generate filename with date
+                const fileName = `PBJT-Export-${new Date().toISOString().split('T')[0]}.xlsx`;
+
+                // Download file
+                XLSX.writeFile(wb, fileName);
+
+                showToast('Export Excel berhasil! 📊');
+            } catch (error) {
+                console.error('Export Excel error:', error);
+                showToast('Export Excel gagal: ' + error.message);
+            }
         }
 
         function exportData() {
