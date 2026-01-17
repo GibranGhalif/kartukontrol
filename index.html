@@ -14,6 +14,11 @@
         .modal-content { transition: transform 0.2s; transform: translateY(100%); }
         .modal:not(.hidden) .modal-content { transform: translateY(0); }
         .signature-canvas { touch-action: none; }
+        .online-badge { animation: pulse 2s infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
     </style>
 </head>
 <body class="bg-gray-50 min-h-screen">
@@ -62,13 +67,20 @@
             </div>
         </div>
 
+        <!-- Online Status -->
+        <div id="online-status" class="m-4 px-4 py-3 rounded-lg flex items-center gap-3 hidden">
+            <span id="sync-icon" class="text-xl"></span>
+            <div class="flex-1">
+                <p class="font-medium" id="sync-status-text">-</p>
+                <p class="text-xs text-gray-500" id="sync-detail-text">-</p>
+            </div>
+        </div>
+
         <!-- Content -->
         <div class="p-4">
             
             <!-- Dashboard -->
             <div id="section-dashboard" class="section">
-                <!-- Online Status -->
-                <div id="online-status" class="mb-4 px-4 py-3 rounded-lg hidden"></div>
                 
                 <!-- Petugas Info -->
                 <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-4 mb-4 text-white shadow-lg">
@@ -81,7 +93,7 @@
                             <p class="font-bold text-lg" id="active-petugas-nama">-</p>
                             <p class="text-sm text-blue-100">NIP: <span id="active-petugas-nip">-</span></p>
                         </div>
-                        <button onclick="openPetugasModal()" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition">
+                        <button id="btn-change-petugas" onclick="openPetugasModal()" class="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center hover:bg-white/30 transition">
                             <i class="ri-edit-line"></i>
                         </button>
                     </div>
@@ -216,6 +228,7 @@
             <!-- Pengaturan -->
             <div id="section-setting" class="section hidden">
                 <div class="space-y-4">
+                    
                     <!-- Firebase Settings -->
                     <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                         <div class="flex items-center gap-2 mb-3">
@@ -230,12 +243,38 @@
                             <input type="text" id="firebase-project-id" placeholder="Firebase Project ID" class="w-full px-3 py-2 border rounded-lg text-sm">
                             <input type="text" id="firebase-database-url" placeholder="Firebase Database URL" class="w-full px-3 py-2 border rounded-lg text-sm">
                         </div>
-                        <div class="flex gap-2">
-                            <button onclick="saveFirebaseConfig()" class="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm">Simpan</button>
-                            <button onclick="testConnection()" class="flex-1 bg-gray-200 text-gray-700 py-2 rounded-lg text-sm">Test</button>
-                            <button onclick="manualSync()" class="flex-1 bg-green-600 text-white py-2 rounded-lg text-sm">Sinkronkan</button>
+                        
+                        <div class="border-t border-gray-200 pt-3 mb-3">
+                            <p class="text-sm font-medium text-gray-700 mb-2">Pengaturan Sinkronisasi</p>
+                            
+                            <div class="flex items-center justify-between py-2">
+                                <span class="text-sm text-gray-600">Sinkronisasi Otomatis</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="auto-sync-toggle" class="sr-only peer" onchange="toggleAutoSync()">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                            
+                            <div class="flex items-center justify-between py-2">
+                                <span class="text-sm text-gray-600">Sinkron Saat Online</span>
+                                <label class="relative inline-flex items-center cursor-pointer">
+                                    <input type="checkbox" id="sync-on-online-toggle" class="sr-only peer" onchange="toggleSyncOnOnline()">
+                                    <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                </label>
+                            </div>
+                            
+                            <div id="last-sync-container" class="mt-2 hidden">
+                                <p class="text-xs text-gray-500">Sinkronisasi terakhir:</p>
+                                <p id="last-sync-time" class="text-sm text-blue-600 font-medium">-</p>
+                            </div>
                         </div>
-                        <button onclick="clearFirebaseConfig()" class="w-full mt-2 bg-red-100 text-red-600 py-2 rounded-lg text-sm">Hapus Config</button>
+                        
+                        <div class="grid grid-cols-3 gap-2 mb-2">
+                            <button onclick="saveFirebaseConfig()" class="bg-blue-600 text-white py-2 rounded-lg text-sm">Simpan</button>
+                            <button onclick="testConnection()" class="bg-gray-200 text-gray-700 py-2 rounded-lg text-sm">Test</button>
+                            <button onclick="manualSync()" class="bg-green-600 text-white py-2 rounded-lg text-sm">Sync</button>
+                        </div>
+                        <button onclick="clearFirebaseConfig()" class="w-full bg-red-100 text-red-600 py-2 rounded-lg text-sm">Hapus Config</button>
                     </div>
 
                     <!-- Ganti Password -->
@@ -708,7 +747,7 @@
     </style>
 
     <script>
-        // Data
+        // ==================== DATA & STATE ====================
         let users = [
             { username: 'admin', password: 'admin123', nama: 'Admin', nip: 'ADMIN001', role: 'admin' },
             { username: 'petugas1', password: '123456', nama: 'Ahmad Fauzi', nip: '198501012010011001', role: 'petugas' },
@@ -723,19 +762,30 @@
         let currentKartuId = null;
         let signaturePad = null;
         let currentParafId = null;
+        
+        // Firebase State
         let firebaseConfig = JSON.parse(localStorage.getItem('pbjt-firebase-config')) || null;
         let db = null;
         let isConnected = false;
+        let autoSyncEnabled = localStorage.getItem('pbjt-auto-sync') === 'true';
+        let syncOnOnlineEnabled = localStorage.getItem('pbjt-sync-on-online') === 'true';
+        let lastSyncTime = localStorage.getItem('pbjt-last-sync') || null;
+        let syncInProgress = false;
 
-        // Init
+        // ==================== INITIALIZATION ====================
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('DOM Content Loaded');
+            console.log('=== App Initializing ===');
             checkLogin();
             setupEventListeners();
             document.getElementById('filter-tanggal').valueAsDate = new Date();
             updateOnlineStatus();
             window.addEventListener('online', updateOnlineStatus);
             window.addEventListener('offline', updateOnlineStatus);
+            
+            // Auto-load Firebase if config exists
+            if (firebaseConfig) {
+                loadFirebaseScripts();
+            }
         });
 
         function checkLogin() {
@@ -759,24 +809,24 @@
             renderChart();
             updateTunggakanBadge();
             if (wajibPajak.length === 0) addSampleData();
-            if (firebaseConfig) loadFirebaseScripts();
             checkUserRole();
+            showOnlineStatus();
         }
 
         function checkUserRole() {
             if (!currentUser) return;
             const roleBadge = document.getElementById('user-role');
             const navSetting = document.getElementById('nav-setting');
-            const openPetugasBtn = document.querySelector('button[onclick="openPetugasModal()"]');
+            const btnChangePetugas = document.getElementById('btn-change-petugas');
             
             if (currentUser.role === 'admin') {
                 roleBadge.textContent = '🔵 Administrator';
                 navSetting.classList.remove('hidden');
-                if (openPetugasBtn) openPetugasBtn.classList.remove('hidden');
+                if (btnChangePetugas) btnChangePetugas.classList.remove('hidden');
             } else {
                 roleBadge.textContent = '🟢 Petugas Pemungut';
                 navSetting.classList.add('hidden');
-                if (openPetugasBtn) openPetugasBtn.classList.add('hidden');
+                if (btnChangePetugas) btnChangePetugas.classList.add('hidden');
             }
         }
 
@@ -784,7 +834,7 @@
             document.getElementById('current-date').textContent = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
         }
 
-        // Setup Event Listeners - Fixed approach
+        // ==================== EVENT LISTENERS ====================
         function setupEventListeners() {
             console.log('=== Setting up event listeners ===');
 
@@ -818,51 +868,33 @@
                 }
             });
 
+            // Form tambah objek
+            document.getElementById('form-tambah').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addItem();
+            });
 
+            // Form edit
+            document.getElementById('form-edit').addEventListener('submit', function(e) {
+                e.preventDefault();
+                saveEdit();
+            });
 
-            // Other forms
-            const tambahForm = document.getElementById('form-tambah');
-            if (tambahForm && !tambahForm.dataset.hasListener) {
-                tambahForm.dataset.hasListener = 'true';
-                tambahForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    addItem();
-                });
-            }
+            // Reset password form
+            document.getElementById('form-reset-password').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const nip = document.getElementById('reset-nip').value;
+                const user = users.find(x => x.nip === nip);
+                if (user) {
+                    user.password = 'admin123';
+                    showToast('Password di-reset ke: admin123');
+                    closeModal('reset-password');
+                    this.reset();
+                } else {
+                    showToast('NIP tidak ditemukan!');
+                }
+            });
 
-            const editForm = document.getElementById('form-edit');
-            if (editForm && !editForm.dataset.hasListener) {
-                editForm.dataset.hasListener = 'true';
-                editForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    saveEdit();
-                });
-            }
-
-            const resetForm = document.getElementById('form-reset-password');
-            if (resetForm && !resetForm.dataset.hasListener) {
-                resetForm.dataset.hasListener = 'true';
-                resetForm.addEventListener('submit', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const nip = document.getElementById('reset-nip').value;
-                    const user = users.find(x => x.nip === nip);
-                    if (user) {
-                        user.password = 'admin123';
-                        showToast('Password di-reset ke: admin123');
-                        closeModal('reset-password');
-                        this.reset();
-                    } else {
-                        showToast('NIP tidak ditemukan!');
-                    }
-                });
-            }
-
-            console.log('✓ Tambah form listener attached');
-            console.log('✓ Edit form listener attached');
-            console.log('✓ Reset password form listener attached');
             console.log('=== All event listeners setup complete ===');
         }
 
@@ -871,8 +903,8 @@
             location.reload();
         }
 
+        // ==================== NAVIGATION ====================
         function showSection(sec) {
-            // Cek role - petugas tidak boleh akses setting
             if (sec === 'setting' && currentUser && currentUser.role !== 'admin') {
                 showToast('Akses ditolak! Hubungi Administrator.');
                 return;
@@ -890,16 +922,15 @@
                 btn.classList.remove('text-gray-400');
             }
             document.getElementById('page-title').textContent = { dashboard: 'Dashboard', kartu: 'Kartu Kontrol', tunggakan: 'Tunggakan', wp: 'Data WP', setting: 'Pengaturan' }[sec];
-            document.getElementById('fab-btn').classList.add('hidden'); // Sembunyikan FAB dulu
+            document.getElementById('fab-btn').classList.add('hidden');
             
-            if (sec === 'kartu') {
-                loadKartuKontrol(); // loadKartuKontrol akan menampilkan FAB jika kartu ada
-            }
+            if (sec === 'kartu') loadKartuKontrol();
             if (sec === 'tunggakan') loadTunggakan();
             if (sec === 'wp') renderWP();
             if (sec === 'setting') { renderPetugas(); loadSettings(); loadFirebaseConfig(); }
         }
 
+        // ==================== MODALS ====================
         function openModal(name) {
             const m = document.getElementById('modal-' + name);
             m.classList.remove('hidden');
@@ -907,6 +938,7 @@
                 document.getElementById('form-tambah').reset();
                 document.getElementById('total-omzet').textContent = 'Rp 0';
                 document.getElementById('total-pajak').textContent = 'Rp 0';
+                document.getElementById('ket-section').classList.add('hidden');
                 updateWPDropdown();
             }
             if (name === 'wp') {
@@ -924,17 +956,14 @@
         }
 
         function closeModal(name) {
-            const m = document.getElementById('modal-' + name);
-            m.classList.add('hidden');
+            document.getElementById('modal-' + name).classList.add('hidden');
         }
 
         function showResetPasswordModal() {
             openModal('reset-password');
         }
 
-        // Fungsi untuk membuka modal tambah objek
         function openTambahModal() {
-            // Cek apakah ada kartu kontrol aktif untuk hari ini
             const tgl = document.getElementById('filter-tanggal').value;
             const kartu = kartuKontrol.find(k => k.tanggal === tgl);
             
@@ -948,18 +977,16 @@
                 return;
             }
             
-            // Cek apakah ada petugas aktif
             const p = getActivePetugas();
             if (!p) {
                 showToast('Set petugas aktif terlebih dahulu!');
                 return;
             }
             
-            // Buka modal
             openModal('tambah');
         }
 
-        // Kartu Kontrol
+        // ==================== KARTU KONTROL ====================
         function createNewKartu() {
             const tgl = document.getElementById('filter-tanggal').value;
             const p = getActivePetugas();
@@ -985,8 +1012,6 @@
             kartuKontrol.push(kartu);
             saveKartu();
             currentKartuId = kartu.id;
-            // Tampilkan tombol FAB setelah kartu dibuat
-            document.getElementById('fab-btn').classList.remove('hidden');
             loadKartuKontrol();
             showToast('Kartu kontrol dibuat! Silakan tambah objek pemungutan.');
         }
@@ -1169,7 +1194,7 @@
             autoSyncKartu();
         }
 
-        // Signature
+        // ==================== SIGNATURE ====================
         function initSignaturePad() {
             const canvas = document.getElementById('signature-canvas');
             const ctx = canvas.getContext('2d');
@@ -1272,7 +1297,7 @@
             openModal('foto');
         }
 
-        // Detail Kartu Kontrol
+        // ==================== DETAIL KARTU ====================
         function showDetailKartu(kartuId) {
             const kartu = kartuKontrol.find(k => k.id === kartuId);
             if (!kartu) return;
@@ -1290,7 +1315,6 @@
             const tunggakan = kartu.items.filter(i => i.status !== 'Lunas').length;
 
             let html = `
-                <!-- Info Kartu -->
                 <div class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-4 text-white">
                     <div class="grid grid-cols-2 gap-4">
                         <div>
@@ -1312,7 +1336,6 @@
                     </div>
                 </div>
 
-                <!-- Ringkasan -->
                 <div class="grid grid-cols-4 gap-2">
                     <div class="bg-white rounded-xl p-3 text-center border border-gray-100">
                         <p class="text-2xl font-bold text-blue-600">${kartu.items.length}</p>
@@ -1332,10 +1355,8 @@
                     </div>
                 </div>
 
-                <!-- Daftar Objek -->
-                <div>
-                    <h4 class="font-medium text-gray-700 mb-3">Daftar Objek Pemungutan</h4>
-                    <div class="space-y-3">
+                <h4 class="font-medium text-gray-700 mb-3">Daftar Objek Pemungutan</h4>
+                <div class="space-y-3">
             `;
 
             kartu.items.forEach((item, idx) => {
@@ -1364,24 +1385,20 @@
                             </div>
                         </div>
 
-                        <!-- Foto Bukti -->
                         ${item.foto ? `
                         <div class="mb-3">
                             <p class="text-sm text-gray-600 mb-2"><i class="ri-image-line"></i> Foto Bukti Pemungutan</p>
-                            <div class="flex gap-2 overflow-x-auto pb-2">
-                                <div onclick="showFoto('${item.foto}')" class="flex-shrink-0 w-32 h-32 bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition">
-                                    <img src="${item.foto}" class="w-full h-full object-cover">
-                                </div>
+                            <div onclick="showFoto('${item.foto}')" class="w-32 h-32 bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition">
+                                <img src="${item.foto}" class="w-full h-full object-cover">
                             </div>
                         </div>
                         ` : ''}
 
-                        <!-- Paraf -->
                         ${item.paraf ? `
                         <div class="mb-3">
                             <p class="text-sm text-gray-600 mb-2"><i class="ri-pen-nib-line"></i> Paraf Wajib Pajak</p>
                             <div class="flex gap-2">
-                                <div class="flex-shrink-0 w-24 h-16 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                                <div class="w-24 h-16 bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
                                     <img src="${item.paraf}" class="w-full h-full object-contain bg-white">
                                 </div>
                                 <div class="flex-1 text-sm">
@@ -1391,7 +1408,6 @@
                         </div>
                         ` : ''}
 
-                        <!-- Keterangan -->
                         ${item.ket ? `
                         <div class="bg-yellow-50 rounded-lg p-3">
                             <p class="text-sm text-yellow-700"><i class="ri-file-text-line"></i> ${item.ket}</p>
@@ -1401,19 +1417,14 @@
                 `;
             });
 
-            html += `
-                    </div>
-                </div>
-            `;
+            html += `</div>`;
 
             document.getElementById('detail-content').innerHTML = html;
             openModal('detail');
         }
 
-        // WP
+        // ==================== WAJIB PAJAK ====================
         function saveWP() {
-            console.log('=== saveWP START ===');
-            
             const id = document.getElementById('wp-id').value || '';
             const npwpd = document.getElementById('wp-npwpd').value;
             const nama = document.getElementById('wp-nama').value;
@@ -1421,24 +1432,18 @@
             const alamat = document.getElementById('wp-alamat').value;
             const tarif = parseFloat(document.getElementById('wp-tarif').value) || 10;
 
-            console.log('Form values:', { id, npwpd, nama, pemilik, alamat, tarif });
-
             if (!npwpd || !nama || !pemilik || !alamat) {
                 showToast('Semua field wajib diisi!');
-                console.log('Validation failed');
                 return;
             }
 
             const data = { id: id || Date.now().toString(), npwpd, nama, pemilik, alamat, tarif };
-            console.log('WP data to save:', data);
 
             if (id) {
                 const idx = wajibPajak.findIndex(w => w.id === id);
                 if (idx !== -1) wajibPajak[idx] = data;
-                console.log('Updated existing WP at index', idx);
             } else {
                 wajibPajak.push(data);
-                console.log('Added new WP, total:', wajibPajak.length);
             }
 
             localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak));
@@ -1446,7 +1451,6 @@
             renderWP();
             closeModal('wp');
             showToast('Data tersimpan!');
-            console.log('=== saveWP END SUCCESS ===');
         }
 
         function renderWP() {
@@ -1505,33 +1509,25 @@
             hitung();
         }
 
-        // Petugas
+        // ==================== PETUGAS ====================
         function savePetugas() {
-            console.log('=== savePetugas START ===');
-            
             const id = document.getElementById('petugas-id').value || '';
             const nama = document.getElementById('petugas-nama').value;
             const nip = document.getElementById('petugas-nip').value;
             const aktif = document.getElementById('petugas-aktif')?.checked || false;
 
-            console.log('Form values:', { id, nama, nip, aktif });
-
             if (!nama || !nip) {
                 showToast('Nama dan NIP wajib diisi!');
-                console.log('Validation failed');
                 return;
             }
 
             const data = { id: id || Date.now().toString(), nama, nip };
-            console.log('Petugas data to save:', data);
 
             if (id) {
                 const idx = petugas.findIndex(p => p.id === id);
                 if (idx !== -1) petugas[idx] = data;
-                console.log('Updated existing petugas at index', idx);
             } else {
                 petugas.push(data);
-                console.log('Added new petugas, total:', petugas.length);
             }
 
             localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
@@ -1541,13 +1537,11 @@
                 activePetugasId = data.id;
                 localStorage.setItem('pbjt-active-petugas', data.id);
                 updatePetugasInfo();
-                console.log('Set as active petugas');
             }
 
             renderPetugas();
             closeModal('petugas');
             showToast('Data tersimpan!');
-            console.log('=== savePetugas END SUCCESS ===');
         }
 
         function renderPetugas() {
@@ -1596,9 +1590,12 @@
         function deletePetugas(id) {
             if (!confirm('Hapus petugas ini?')) return;
             petugas = petugas.filter(p => p.id !== id);
+            if (activePetugasId === id) activePetugasId = '';
             localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
+            localStorage.setItem('pbjt-active-petugas', activePetugasId);
             autoSyncPetugas();
             renderPetugas();
+            updatePetugasInfo();
             showToast('Data dihapus!');
         }
 
@@ -1611,7 +1608,6 @@
         }
 
         function openPetugasModal() {
-            // Cek role - petugas tidak boleh ganti petugas aktif
             if (currentUser && currentUser.role !== 'admin') {
                 showToast('Akses ditolak! Hubungi Administrator.');
                 return;
@@ -1636,7 +1632,7 @@
             }
         }
 
-        // Helpers
+        // ==================== HELPERS ====================
         function hitung() {
             const omzet = (parseFloat(document.getElementById('omzet-m').value) || 0) + (parseFloat(document.getElementById('omzet-n').value) || 0);
             const tarif = parseFloat(document.getElementById('tarif').value) || 10;
@@ -1840,16 +1836,13 @@
 
         function exportToExcel() {
             try {
-                // Check if XLSX library is available
                 if (typeof XLSX === 'undefined') {
                     showToast('Library Excel belum dimuat. Silakan refresh halaman.');
                     return;
                 }
 
-                // Create workbook
                 const wb = XLSX.utils.book_new();
 
-                // Sheet 1: Data Wajib Pajak
                 const wpData = wajibPajak.map((wp, i) => ({
                     'No': i + 1,
                     'NPWPD': wp.npwpd,
@@ -1861,7 +1854,6 @@
                 const wsWP = XLSX.utils.json_to_sheet(wpData);
                 XLSX.utils.book_append_sheet(wb, wsWP, 'Wajib Pajak');
 
-                // Sheet 2: Data Petugas
                 const petugasData = petugas.map((p, i) => ({
                     'No': i + 1,
                     'Nama': p.nama,
@@ -1871,7 +1863,6 @@
                 const wsPetugas = XLSX.utils.json_to_sheet(petugasData);
                 XLSX.utils.book_append_sheet(wb, wsPetugas, 'Petugas');
 
-                // Sheet 3: Kartu Kontrol
                 const kartuRows = [];
                 kartuKontrol.forEach(kartu => {
                     kartu.items.forEach((item, idx) => {
@@ -1899,11 +1890,11 @@
                 const wsKartu = XLSX.utils.json_to_sheet(kartuRows);
                 XLSX.utils.book_append_sheet(wb, wsKartu, 'Kartu Kontrol');
 
-                // Sheet 4: Ringkasan
                 const totalOmzet = kartuKontrol.reduce((s, k) => s + k.items.reduce((a, i) => a + i.omzet, 0), 0);
                 const totalPajak = kartuKontrol.reduce((s, k) => s + k.items.reduce((a, i) => a + i.pajak, 0), 0);
                 const totalLunas = kartuKontrol.reduce((s, k) => s + k.items.filter(i => i.status === 'Lunas').length, 0);
-                const totalTunggakan = kartuKontrol.reduce((s, k) => s + k.items.filter(i => i.status !== 'Lunas').reduce((a, i) => a + i.pajak, 0), 0);
+                let totalTunggakan = 0;
+                kartuKontrol.forEach(k => k.items.forEach(i => { if (i.status !== 'Lunas') totalTunggakan += i.pajak; }));
 
                 const ringkasanData = [
                     { 'Keterangan': 'Jumlah Wajib Pajak', 'Nilai': wajibPajak.length },
@@ -1919,10 +1910,7 @@
                 const wsRingkasan = XLSX.utils.json_to_sheet(ringkasanData);
                 XLSX.utils.book_append_sheet(wb, wsRingkasan, 'Ringkasan');
 
-                // Generate filename with date
                 const fileName = `PBJT-Export-${new Date().toISOString().split('T')[0]}.xlsx`;
-
-                // Download file
                 XLSX.writeFile(wb, fileName);
 
                 showToast('Export Excel berhasil! 📊');
@@ -1958,6 +1946,7 @@
                     localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
                     localStorage.setItem('pbjt-settings', JSON.stringify(settings));
                     renderAll();
+                    manualSync();
                     showToast('Data di-import!');
                 } catch (err) {
                     showToast('File tidak valid!');
@@ -1972,54 +1961,146 @@
             location.reload();
         }
 
-        // Firebase
+        // ==================== FIREBASE ====================
         function loadFirebaseScripts() {
-            const script1 = document.createElement('script');
-            script1.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js';
-            script1.onload = () => {
-                const script2 = document.createElement('script');
-                script2.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js';
-                script2.onload = initFirebase;
-                document.head.appendChild(script2);
+            console.log('Loading Firebase scripts...');
+            updateSyncStatus('🟡', 'Memuat Firebase...', 'Menghubungkan ke database');
+            
+            // Load Firebase App
+            const scriptApp = document.createElement('script');
+            scriptApp.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js';
+            scriptApp.onload = () => {
+                console.log('Firebase App loaded');
+                
+                // Load Firebase Database
+                const scriptDB = document.createElement('script');
+                scriptDB.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js';
+                scriptDB.onload = () => {
+                    console.log('Firebase Database loaded');
+                    initFirebase();
+                };
+                scriptDB.onerror = () => {
+                    console.error('Failed to load Firebase Database');
+                    updateSyncStatus('🔴', 'Gagal Memuat', 'Gagal memuat Firebase Database');
+                };
+                document.head.appendChild(scriptDB);
             };
-            document.head.appendChild(script1);
+            scriptApp.onerror = () => {
+                console.error('Failed to load Firebase App');
+                updateSyncStatus('🔴', 'Gagal Memuat', 'Gagal memuat Firebase App');
+            };
+            document.head.appendChild(scriptApp);
         }
 
         function initFirebase() {
-            if (!firebaseConfig) return;
-            if (!window.firebase || !window.firebase.database) {
-                console.log('Firebase not available');
+            if (!firebaseConfig || !window.firebase) {
+                console.log('Firebase config or firebase object not available');
                 return;
             }
+
             try {
+                console.log('Initializing Firebase with config:', firebaseConfig);
                 window.firebase.initializeApp(firebaseConfig);
                 db = window.firebase.database();
                 isConnected = true;
-                updateFirebaseStatus('🟢 Terhubung');
+                
+                updateSyncStatus('🟢', 'Terhubung ke Firebase', 'Data tersinkronisasi secara otomatis');
                 console.log('Firebase initialized successfully');
+                
+                loadSyncSettings();
+                setupRealtimeSync();
+                
+                if (autoSyncEnabled) {
+                    setTimeout(() => manualSync(), 1000);
+                }
+                
             } catch (err) {
                 if (err.code === 'app/duplicate-app') {
+                    console.log('Firebase app already exists, reusing');
                     db = window.firebase.database();
                     isConnected = true;
-                    updateFirebaseStatus('🟢 Terhubung');
+                    updateSyncStatus('🟢', 'Terhubung ke Firebase', 'Data tersinkronisasi secara otomatis');
+                    loadSyncSettings();
+                    setupRealtimeSync();
                 } else {
-                    updateFirebaseStatus('🔴 Gagal: ' + err.message);
+                    console.error('Firebase init error:', err);
+                    updateSyncStatus('🔴', 'Koneksi Gagal', err.message);
                 }
             }
+        }
+
+        function setupRealtimeSync() {
+            if (!db) return;
+            
+            console.log('Setting up realtime sync...');
+            
+            // Listen for data changes from Firebase
+            db.ref('/').on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+                
+                console.log('Received data from Firebase');
+                
+                // Update wajibPajak
+                if (data.wajibPajak && JSON.stringify(data.wajibPajak) !== JSON.stringify(wajibPajak)) {
+                    wajibPajak = data.wajibPajak;
+                    localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak));
+                    renderWP();
+                }
+                
+                // Update petugas
+                if (data.petugas && JSON.stringify(data.petugas) !== JSON.stringify(petugas)) {
+                    petugas = data.petugas;
+                    localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
+                    renderPetugas();
+                    updatePetugasInfo();
+                }
+                
+                // Update kartuKontrol
+                if (data.kartuKontrol && JSON.stringify(data.kartuKontrol) !== JSON.stringify(kartuKontrol)) {
+                    kartuKontrol = data.kartuKontrol;
+                    localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
+                    updateStats();
+                    renderChart();
+                    updateTunggakanBadge();
+                    if (currentKartuId) loadKartuKontrol();
+                }
+                
+                // Update settings
+                if (data.settings) {
+                    settings = data.settings;
+                    localStorage.setItem('pbjt-settings', JSON.stringify(settings));
+                }
+                
+                updateLastSyncTime();
+            });
         }
 
         function saveFirebaseConfig() {
             const apiKey = document.getElementById('firebase-api-key').value.trim();
             const projectId = document.getElementById('firebase-project-id').value.trim();
             const databaseURL = document.getElementById('firebase-database-url').value.trim();
+            
             if (!apiKey || !projectId || !databaseURL) {
                 showToast('Semua field harus diisi!');
                 return;
             }
-            firebaseConfig = { apiKey, projectId, databaseURL, authDomain: `${projectId}.firebaseapp.com` };
+            
+            firebaseConfig = {
+                apiKey,
+                projectId,
+                databaseURL,
+                authDomain: `${projectId}.firebaseapp.com`,
+                storageBucket: `${projectId}.appspot.com`
+            };
+            
             localStorage.setItem('pbjt-firebase-config', JSON.stringify(firebaseConfig));
-            updateFirebaseStatus('🟡 Memuat Firebase...');
+            
+            updateSyncStatus('🟡', 'Menghubungkan...', 'Menyambungkan ke Firebase');
+            
+            // Load Firebase scripts
             loadFirebaseScripts();
+            
             showToast('Konfigurasi disimpan!');
         }
 
@@ -2029,109 +2110,212 @@
                 document.getElementById('firebase-project-id').value = firebaseConfig.projectId || '';
                 document.getElementById('firebase-database-url').value = firebaseConfig.databaseURL || '';
             }
-            if (isConnected && db) {
-                updateFirebaseStatus('🟢 Terhubung');
-            } else {
-                updateFirebaseStatus('🔵 Belum diatur');
-            }
+            loadSyncSettings();
+            updateFirebaseStatus();
         }
 
         function clearFirebaseConfig() {
             if (!confirm('Hapus konfigurasi Firebase?')) return;
+            
             firebaseConfig = null;
             localStorage.removeItem('pbjt-firebase-config');
             isConnected = false;
-            updateFirebaseStatus('🔵 Belum diatur');
+            
             document.getElementById('firebase-api-key').value = '';
             document.getElementById('firebase-project-id').value = '';
             document.getElementById('firebase-database-url').value = '';
+            
+            updateSyncStatus('🔵', 'Tidak Terhubung', 'Firebase tidak dikonfigurasi');
+            updateFirebaseStatus();
+            
             showToast('Konfigurasi dihapus!');
         }
 
-        function updateFirebaseStatus(status) {
+        function updateFirebaseStatus() {
             const el = document.getElementById('firebase-status');
-            el.textContent = status;
-            el.className = 'mb-3 px-3 py-2 rounded-lg text-sm ' + 
-                (status.includes('🟢') ? 'bg-green-100 text-green-700' : 
-                 status.includes('🔴') ? 'bg-red-100 text-red-700' : 
-                 status.includes('🟡') ? 'bg-yellow-100 text-yellow-700' : 'bg-gray-100 text-gray-600');
+            if (isConnected && db) {
+                el.textContent = '🟢 Terhubung ke Firebase';
+                el.className = 'mb-3 px-3 py-2 rounded-lg text-sm bg-green-100 text-green-700';
+            } else {
+                el.textContent = '🔵 Belum diatur';
+                el.className = 'mb-3 px-3 py-2 rounded-lg text-sm bg-gray-100 text-gray-600';
+            }
+        }
+
+        function loadSyncSettings() {
+            document.getElementById('auto-sync-toggle').checked = autoSyncEnabled;
+            document.getElementById('sync-on-online-toggle').checked = syncOnOnlineEnabled;
+            updateLastSyncTime();
+        }
+
+        function toggleAutoSync() {
+            autoSyncEnabled = document.getElementById('auto-sync-toggle').checked;
+            localStorage.setItem('pbjt-auto-sync', autoSyncEnabled);
+            
+            if (autoSyncEnabled && isConnected) {
+                showToast('Sinkronisasi otomatis diaktifkan');
+                manualSync();
+            } else {
+                showToast('Sinkronisasi otomatis dinonaktifkan');
+            }
+        }
+
+        function toggleSyncOnOnline() {
+            syncOnOnlineEnabled = document.getElementById('sync-on-online-toggle').checked;
+            localStorage.setItem('pbjt-sync-on-online', syncOnOnlineEnabled);
+            
+            if (syncOnOnlineEnabled) {
+                showToast('Sinkron saat online diaktifkan');
+            } else {
+                showToast('Sinkron saat online dinonaktifkan');
+            }
+        }
+
+        function updateLastSyncTime() {
+            const container = document.getElementById('last-sync-container');
+            const timeEl = document.getElementById('last-sync-time');
+            
+            if (lastSyncTime) {
+                const date = new Date(lastSyncTime);
+                timeEl.textContent = date.toLocaleString('id-ID');
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
+        function manualSync() {
+            if (!isConnected || !db) {
+                showToast('Firebase belum terhubung!');
+                return;
+            }
+            
+            if (syncInProgress) {
+                showToast('Sinkronisasi sedang berjalan...');
+                return;
+            }
+            
+            syncInProgress = true;
+            updateSyncStatus('🟡', 'Sinkronisasi...', 'Mengunggah data ke Firebase');
+            
+            const data = { wajibPajak, petugas, kartuKontrol, settings };
+            
+            console.log('Starting manual sync...');
+            
+            db.ref('/').set(data)
+                .then(() => {
+                    lastSyncTime = new Date().toISOString();
+                    localStorage.setItem('pbjt-last-sync', lastSyncTime);
+                    updateLastSyncTime();
+                    
+                    updateSyncStatus('🟢', 'Sinkronisasi Berhasil', `Terakhir: ${new Date(lastSyncTime).toLocaleTimeString('id-ID')}`);
+                    
+                    syncInProgress = false;
+                    showToast('Sinkronisasi berhasil! ✅');
+                    console.log('Manual sync completed at', lastSyncTime);
+                })
+                .catch(err => {
+                    syncInProgress = false;
+                    const msg = err.code === 'PERMISSION_DENIED' ? 'Izin ditolak - Cek database rules' : err.message;
+                    
+                    updateSyncStatus('🔴', 'Sinkronisasi Gagal', msg);
+                    showToast('Sinkronisasi gagal: ' + msg);
+                    console.error('Sync error:', err);
+                });
         }
 
         function testConnection() {
-            if (!window.firebase || !window.firebase.database) {
-                showToast('Firebase SDK tidak tersedia!');
+            if (!isConnected || !db) {
+                showToast('Firebase belum terhubung!');
                 return;
             }
-            if (!firebaseConfig) {
-                showToast('Firebase belum dikonfigurasi!');
-                return;
-            }
-            updateFirebaseStatus('🟡 Menguji koneksi...');
+            
+            updateSyncStatus('🟡', 'Menguji Koneksi...', 'Mengirim data tes');
+            
             db.ref('/testConnection').set({ timestamp: Date.now() })
                 .then(() => db.ref('/testConnection').remove())
                 .then(() => {
-                    isConnected = true;
-                    updateFirebaseStatus('🟢 Terhubung');
+                    updateSyncStatus('🟢', 'Koneksi Berhasil', 'Firebase dapat diakses');
                     showToast('Koneksi Firebase berhasil! 🎉');
                 })
                 .catch(err => {
-                    isConnected = false;
                     const msg = err.code === 'PERMISSION_DENIED' ? 'Izin ditolak - Cek database rules' : err.message;
-                    updateFirebaseStatus('🔴 ' + msg);
+                    updateSyncStatus('🔴', 'Koneksi Gagal', msg);
                     showToast('Koneksi gagal: ' + msg);
                 });
         }
 
-        function manualSync() {
-            if (!window.firebase || !window.firebase.database || !firebaseConfig) {
-                showToast('Firebase belum tersedia!');
-                return;
-            }
-            updateFirebaseStatus('🟡 Sinkronisasi...');
-            const data = { wajibPajak, petugas, kartuKontrol, settings };
-            db.ref('/').set(data)
-                .then(() => {
-                    isConnected = true;
-                    updateFirebaseStatus('🟢 Sinkronisasi selesai');
-                    showToast('Sinkronisasi berhasil! ✅');
-                })
-                .catch(err => {
-                    const msg = err.code === 'PERMISSION_DENIED' ? 'Izin ditolak - Cek database rules' : err.message;
-                    updateFirebaseStatus('🔴 ' + msg);
-                    showToast('Sinkronisasi gagal: ' + msg);
-                });
-        }
-
+        // Auto sync functions
         function autoSyncWP() {
-            if (window.firebase && window.firebase.database && db && isConnected) {
-                try { db.ref('/wajibPajak').set(wajibPajak); } catch(e) {}
+            if (autoSyncEnabled && isConnected && db && !syncInProgress) {
+                db.ref('/wajibPajak').set(wajibPajak).catch(e => console.log('Sync WP error:', e));
             }
         }
 
         function autoSyncPetugas() {
-            if (window.firebase && window.firebase.database && db && isConnected) {
-                try { db.ref('/petugas').set(petugas); } catch(e) {}
+            if (autoSyncEnabled && isConnected && db && !syncInProgress) {
+                db.ref('/petugas').set(petugas).catch(e => console.log('Sync petugas error:', e));
             }
         }
 
         function autoSyncKartu() {
-            if (window.firebase && window.firebase.database && db && isConnected) {
-                try { db.ref('/kartuKontrol').set(kartuKontrol); } catch(e) {}
+            if (autoSyncEnabled && isConnected && db && !syncInProgress) {
+                db.ref('/kartuKontrol').set(kartuKontrol).catch(e => console.log('Sync kartu error:', e));
             }
         }
 
+        // ==================== ONLINE/OFFLINE STATUS ====================
         function updateOnlineStatus() {
-            const el = document.getElementById('online-status');
-            if (navigator.onLine) {
-                el.textContent = '🟢 Anda Online - Data akan disinkronkan';
-                el.className = 'mb-4 px-4 py-3 rounded-lg bg-green-100 text-green-700';
-            } else {
-                el.textContent = '🔴 Anda Offline - Data tersimpan lokal';
-                el.className = 'mb-4 px-4 py-3 rounded-lg bg-yellow-100 text-yellow-700';
+            showOnlineStatus();
+            
+            if (navigator.onLine && syncOnOnlineEnabled && isConnected && db) {
+                console.log('Device came online, triggering sync...');
+                setTimeout(() => manualSync(), 2000);
             }
+        }
+
+        function showOnlineStatus() {
+            const el = document.getElementById('online-status');
+            const iconEl = document.getElementById('sync-icon');
+            const statusEl = document.getElementById('sync-status-text');
+            const detailEl = document.getElementById('sync-detail-text');
+            
+            if (navigator.onLine) {
+                if (isConnected && db) {
+                    iconEl.innerHTML = '<i class="ri-cloud-line online-badge text-green-600"></i>';
+                    statusEl.textContent = '🟢 Terhubung ke Firebase';
+                    detailEl.textContent = 'Data tersinkronisasi secara otomatis';
+                    el.className = 'm-4 px-4 py-3 rounded-lg flex items-center gap-3 bg-green-50 border border-green-200';
+                } else {
+                    iconEl.innerHTML = '<i class="ri-cloud-off-line text-gray-500"></i>';
+                    statusEl.textContent = '🔵 Offline Mode';
+                    detailEl.textContent = 'Data tersimpan lokal';
+                    el.className = 'm-4 px-4 py-3 rounded-lg flex items-center gap-3 bg-gray-100 border border-gray-200';
+                }
+            } else {
+                iconEl.innerHTML = '<i class="ri-wifi-off-line text-red-500"></i>';
+                statusEl.textContent = '🔴 Tidak Ada Internet';
+                detailEl.textContent = 'Data tersimpan lokal, akan sinkron saat online';
+                el.className = 'm-4 px-4 py-3 rounded-lg flex items-center gap-3 bg-red-50 border border-red-200';
+            }
+            
             el.classList.remove('hidden');
         }
 
+        function updateSyncStatus(icon, status, detail) {
+            const iconEl = document.getElementById('sync-icon');
+            const statusEl = document.getElementById('sync-status-text');
+            const detailEl = document.getElementById('sync-detail-text');
+            
+            if (iconEl) iconEl.innerHTML = icon.includes('🟢') ? '<i class="ri-cloud-check-line text-green-600"></i>' :
+                                          icon.includes('🔴') ? '<i class="ri-error-warning-line text-red-600"></i>' :
+                                          icon.includes('🟡') ? '<i class="ri-loader-4-line text-yellow-600 animate-spin"></i>' :
+                                          '<i class="ri-cloud-line text-gray-500"></i>';
+            if (statusEl) statusEl.textContent = status;
+            if (detailEl) detailEl.textContent = detail;
+        }
+
+        // ==================== RENDER ALL ====================
         function renderAll() {
             renderWP();
             renderPetugas();
@@ -2140,16 +2324,16 @@
             updateTunggakanBadge();
         }
 
-        function printKartuById(kartuId) {
-            currentKartuId = kartuId;
-            printKartu();
-        }
-
-        // Format functions
+        // ==================== FORMAT FUNCTIONS ====================
         function formatRupiah(num) { return 'Rp ' + num.toLocaleString('id-ID'); }
         function formatRupiahCompact(num) { return num >= 1000000 ? (num/1000000).toFixed(1) + ' Jt' : num >= 1000 ? (num/1000).toFixed(1) + ' Rb' : 'Rp ' + num.toLocaleString('id-ID'); }
         function formatDate(str) { return new Date(str).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }); }
-        function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.remove('hidden'); setTimeout(() => t.classList.add('hidden'), 2000); }
+        function showToast(msg) { 
+            const t = document.getElementById('toast'); 
+            t.textContent = msg; 
+            t.classList.remove('hidden'); 
+            setTimeout(() => t.classList.add('hidden'), 2000); 
+        }
         function addSampleData() {
             wajibPajak = [
                 { id: '1', npwpd: '01.123.456.789-001', nama: 'Restoran Sederhana', pemilik: 'Budi', alamat: 'Jl. Merdeka No. 10', tarif: 10 },
@@ -2158,19 +2342,15 @@
             localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak));
         }
 
-        // Debug function - can be called from console
+        // ==================== DEBUG FUNCTIONS ====================
         window.testWPForm = function() {
             console.log('=== Test WP Form ===');
-            console.log('Wajib Pajak array:', wajibPajak);
-            
             document.getElementById('wp-id').value = '';
             document.getElementById('wp-npwpd').value = 'TEST.123.456';
             document.getElementById('wp-nama').value = 'Test Restoran';
             document.getElementById('wp-pemilik').value = 'Test Owner';
             document.getElementById('wp-alamat').value = 'Test Address';
             document.getElementById('wp-tarif').value = '10';
-            
-            console.log('Form filled, calling saveWP()...');
             saveWP();
         };
 
