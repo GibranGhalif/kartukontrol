@@ -797,8 +797,11 @@
         }
 
         function showApp() {
+            console.log('=== showApp called ===');
+            console.log('currentUser:', currentUser);
             document.getElementById('login-page').classList.add('hidden');
             document.getElementById('app-container').classList.remove('hidden');
+            console.log('DOM elements hidden/shown');
             init();
         }
 
@@ -809,7 +812,12 @@
             renderChart();
             updateTunggakanBadge();
             if (wajibPajak.length === 0) addSampleData();
-            checkUserRole();
+            
+            // Delay checkUserRole to ensure DOM is ready
+            setTimeout(() => {
+                checkUserRole();
+            }, 100);
+            
             showOnlineStatus();
         }
 
@@ -819,14 +827,20 @@
             const navSetting = document.getElementById('nav-setting');
             const btnChangePetugas = document.getElementById('btn-change-petugas');
             
+            console.log('=== checkUserRole ===');
+            console.log('User role:', currentUser.role);
+            console.log('navSetting:', navSetting);
+            
             if (currentUser.role === 'admin') {
                 roleBadge.textContent = '🔵 Administrator';
-                navSetting.classList.remove('hidden');
+                if (navSetting) navSetting.classList.remove('hidden');
                 if (btnChangePetugas) btnChangePetugas.classList.remove('hidden');
+                console.log('Admin: Setting menu VISIBLE');
             } else {
                 roleBadge.textContent = '🟢 Petugas Pemungut';
-                navSetting.classList.add('hidden');
+                if (navSetting) navSetting.classList.add('hidden');
                 if (btnChangePetugas) btnChangePetugas.classList.add('hidden');
+                console.log('Petugas: Setting menu HIDDEN');
             }
         }
 
@@ -840,15 +854,22 @@
 
             // Login form
             document.getElementById('login-form').addEventListener('submit', function(e) {
+                console.log('=== Login form submitted ===');
                 e.preventDefault();
                 const u = document.getElementById('login-username').value;
                 const p = document.getElementById('login-password').value;
+                console.log('Username/NIP:', u);
+                console.log('Password:', p ? '***' : '(empty)');
+                console.log('Users array:', users);
                 const user = users.find(x => x.username === u || x.nip === u);
+                console.log('Found user:', user);
                 if (user && user.password === p) {
+                    console.log('Login successful!');
                     currentUser = user;
                     localStorage.setItem('pbjt-user', JSON.stringify(user));
                     showApp();
                 } else {
+                    console.log('Login failed: wrong credentials');
                     showToast('Username atau password salah!');
                 }
             });
@@ -905,9 +926,16 @@
 
         // ==================== NAVIGATION ====================
         function showSection(sec) {
+            console.log('=== showSection ===', sec, 'User role:', currentUser?.role);
+            
             if (sec === 'setting' && currentUser && currentUser.role !== 'admin') {
                 showToast('Akses ditolak! Hubungi Administrator.');
                 return;
+            }
+            
+            // Admin can always access setting
+            if (sec === 'setting' && currentUser && currentUser.role === 'admin') {
+                console.log('Admin accessing Setting - ALLOWED');
             }
             
             document.querySelectorAll('.section').forEach(el => el.classList.add('hidden'));
@@ -1608,15 +1636,17 @@
         }
 
         function openPetugasModal() {
-            if (currentUser && currentUser.role !== 'admin') {
-                showToast('Akses ditolak! Hubungi Administrator.');
-                return;
-            }
+            console.log('=== openPetugasModal ===', currentUser?.role);
+            
+            // Allow changing active petugas for both admin and petugas
+            // Only restrict adding/editing petugas data for non-admin
             
             if (petugas.length > 0) {
                 openModal('pilih-petugas');
-            } else {
+            } else if (currentUser && currentUser.role === 'admin') {
                 openModal('petugas');
+            } else {
+                showToast('Hubungi Administrator untuk menambah petugas.');
             }
         }
 
