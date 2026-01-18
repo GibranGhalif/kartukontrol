@@ -160,42 +160,59 @@
 
             <!-- Kartu Kontrol -->
             <div id="section-kartu" class="section hidden">
-                <div class="flex gap-2 mb-4">
-                    <input type="date" id="filter-tanggal" class="flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" onchange="loadKartuKontrol()">
-                    <button onclick="createNewKartu()" class="bg-blue-600 text-white px-4 py-3 rounded-xl font-medium hover:bg-blue-700 transition">
-                        <i class="ri-add-line mr-1"></i>Buat Baru
-                    </button>
+                <!-- Admin: Riwayat Semua Kartu -->
+                <div id="kartu-riwayat-section" class="hidden mb-4">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="font-bold text-gray-800">Riwayat Semua Kartu Kontrol</h3>
+                        <select id="filter-riwayat" class="px-3 py-2 border rounded-lg text-sm" onchange="loadRiwayatKartu()">
+                            <option value="semua">Semua Waktu</option>
+                            <option value="bulan-ini" selected>Bulan Ini</option>
+                            <option value="bulan-lalu">Bulan Lalu</option>
+                        </select>
+                    </div>
+                    <div id="riwayat-list" class="space-y-3 max-h-[60vh] overflow-y-auto"></div>
                 </div>
 
-                <div id="kartu-info" class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-4 mb-4 text-white hidden">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <p class="text-xs text-blue-100">No. Kartu</p>
-                            <p class="font-bold text-lg" id="info-no-kartu">-</p>
-                            <p class="text-sm text-blue-100 mt-1">Jam: <span id="info-jam">-</span></p>
-                        </div>
-                        <div class="text-right">
-                            <p class="text-xs text-blue-100">Total Objek</p>
-                            <p class="font-bold text-lg" id="info-objek">0</p>
-                            <p class="text-sm text-blue-100 mt-1"><span id="info-lunas">0</span> Lunas / <span id="info-tunggakan">0</span> Tunggakan</p>
+                <!-- Detail Kartu (Single Date View) -->
+                <div id="kartu-tanggal-section">
+                    <div class="flex gap-2 mb-4">
+                        <input type="date" id="filter-tanggal" class="flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" onchange="loadKartuKontrol()">
+                        <button onclick="createNewKartu()" class="bg-blue-600 text-white px-4 py-3 rounded-xl font-medium hover:bg-blue-700 transition">
+                            <i class="ri-add-line mr-1"></i>Buat Baru
+                        </button>
+                    </div>
+
+                    <div id="kartu-info" class="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-4 mb-4 text-white hidden">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-xs text-blue-100">No. Kartu</p>
+                                <p class="font-bold text-lg" id="info-no-kartu">-</p>
+                                <p class="text-sm text-blue-100 mt-1">Petugas: <span id="info-petugas">-</span></p>
+                                <p class="text-sm text-blue-100 mt-1">Jam: <span id="info-jam">-</span></p>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-xs text-blue-100">Total Objek</p>
+                                <p class="font-bold text-lg" id="info-objek">0</p>
+                                <p class="text-sm text-blue-100 mt-1"><span id="info-lunas">0</span> Lunas / <span id="info-tunggakan">0</span> Tunggakan</p>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <button onclick="showDetailKartu(currentKartuId)" id="btn-detail-kartu" class="w-full mb-4 bg-purple-600 text-white py-3 rounded-xl font-medium hover:bg-purple-700 transition hidden flex items-center justify-center gap-2">
-                    <i class="ri-eye-line"></i> Lihat Detail Kartu
-                </button>
-
-                <div id="kartu-list" class="space-y-3"></div>
-
-                <div id="kartu-actions" class="mt-4 hidden">
-                    <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-4">
-                        <label class="text-sm block mb-2 text-gray-600">Jam Selesai</label>
-                        <input type="time" id="jam-selesai" class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" onchange="saveJamSelesai()">
-                    </div>
-                    <button onclick="printKartu()" class="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transition">
-                        <i class="ri-printer-line mr-2"></i>Cetak Kartu Kontrol
+                    <button onclick="showDetailKartu(currentKartuId)" id="btn-detail-kartu" class="w-full mb-4 bg-purple-600 text-white py-3 rounded-xl font-medium hover:bg-purple-700 transition hidden flex items-center justify-center gap-2">
+                        <i class="ri-eye-line"></i> Lihat Detail Kartu
                     </button>
+
+                    <div id="kartu-list" class="space-y-3"></div>
+
+                    <div id="kartu-actions" class="mt-4 hidden">
+                        <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-4">
+                            <label class="text-sm block mb-2 text-gray-600">Jam Selesai</label>
+                            <input type="time" id="jam-selesai" class="w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" onchange="saveJamSelesai()">
+                        </div>
+                        <button onclick="printKartu()" class="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transition">
+                            <i class="ri-printer-line mr-2"></i>Cetak Kartu Kontrol
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -750,8 +767,9 @@
         // ==================== DATA & STATE ====================
         let users = [
             { username: 'admin', password: 'admin123', nama: 'Admin', nip: 'ADMIN001', role: 'admin' },
-            { username: 'petugas1', password: '123456', nama: 'Ahmad Fauzi', nip: '198501012010011001', role: 'petugas' },
-            { username: 'supervisor', password: 'supervisor123', nama: 'Budi Santoso', nip: 'SUPER001', role: 'admin' }
+            { username: 'supervisor', password: 'supervisor123', nama: 'Budi Santoso', nip: 'SUPER001', role: 'admin' },
+            { username: 'haris', password: 'haris123', nama: 'Haris', nip: '199001012015011001', role: 'petugas' },
+            { username: 'rian', password: 'rian123', nama: 'Rian', nip: '199205022019031002', role: 'petugas' }
         ];
         let currentUser = null;
         let wajibPajak = JSON.parse(localStorage.getItem('pbjt-wp')) || [];
@@ -806,41 +824,61 @@
         }
 
         function init() {
-            updateDate();
-            renderAll();
-            updatePetugasInfo();
-            renderChart();
-            updateTunggakanBadge();
-            if (wajibPajak.length === 0) addSampleData();
-            
-            // Delay checkUserRole to ensure DOM is ready
-            setTimeout(() => {
-                checkUserRole();
-            }, 100);
-            
-            showOnlineStatus();
+            try {
+                updateDate();
+                renderAll();
+                updatePetugasInfo();
+                renderChart();
+                updateTunggakanBadge();
+                if (wajibPajak.length === 0) addSampleData();
+                
+                // Delay checkUserRole to ensure DOM is ready
+                setTimeout(() => {
+                    checkUserRole();
+                }, 200);
+                
+                showOnlineStatus();
+            } catch (e) {
+                console.error('Error in init:', e);
+                // Make sure checkUserRole still runs even if init has errors
+                setTimeout(() => {
+                    checkUserRole();
+                }, 300);
+            }
         }
 
         function checkUserRole() {
-            if (!currentUser) return;
-            const roleBadge = document.getElementById('user-role');
-            const navSetting = document.getElementById('nav-setting');
-            const btnChangePetugas = document.getElementById('btn-change-petugas');
-            
-            console.log('=== checkUserRole ===');
-            console.log('User role:', currentUser.role);
-            console.log('navSetting:', navSetting);
-            
-            if (currentUser.role === 'admin') {
-                roleBadge.textContent = '🔵 Administrator';
-                if (navSetting) navSetting.classList.remove('hidden');
-                if (btnChangePetugas) btnChangePetugas.classList.remove('hidden');
-                console.log('Admin: Setting menu VISIBLE');
-            } else {
-                roleBadge.textContent = '🟢 Petugas Pemungut';
-                if (navSetting) navSetting.classList.add('hidden');
-                if (btnChangePetugas) btnChangePetugas.classList.add('hidden');
-                console.log('Petugas: Setting menu HIDDEN');
+            try {
+                if (!currentUser) return;
+                const roleBadge = document.getElementById('user-role');
+                const navSetting = document.getElementById('nav-setting');
+                const btnChangePetugas = document.getElementById('btn-change-petugas');
+                
+                console.log('=== checkUserRole ===');
+                console.log('User role:', currentUser.role);
+                console.log('User nama:', currentUser.nama);
+                console.log('navSetting element:', navSetting);
+                
+                if (currentUser.role === 'admin') {
+                    roleBadge.textContent = '🔵 Administrator';
+                    if (navSetting) navSetting.classList.remove('hidden');
+                    if (btnChangePetugas) btnChangePetugas.classList.remove('hidden');
+                    console.log('Admin: Setting menu VISIBLE');
+                    
+                    // Load petugas info from localStorage
+                    updatePetugasInfo();
+                } else {
+                    roleBadge.textContent = '🟢 Petugas: ' + currentUser.nama;
+                    if (navSetting) navSetting.classList.add('hidden');
+                    if (btnChangePetugas) btnChangePetugas.classList.add('hidden');
+                    console.log('Petugas: Setting menu HIDDEN');
+                    console.log('Petugas NIP:', currentUser.nip);
+                    
+                    // Set petugas info based on logged-in user
+                    updatePetugasInfoFromUser();
+                }
+            } catch (e) {
+                console.error('Error in checkUserRole:', e);
             }
         }
 
@@ -865,9 +903,18 @@
                 console.log('Found user:', user);
                 if (user && user.password === p) {
                     console.log('Login successful!');
+                    console.log('User Role:', user.role);
+                    console.log('User NIP:', user.nip);
+                    console.log('User Name:', user.nama);
                     currentUser = user;
                     localStorage.setItem('pbjt-user', JSON.stringify(user));
                     showApp();
+                    
+                    // Double check user role after a short delay
+                    setTimeout(() => {
+                        console.log('Re-checking user role after login...');
+                        checkUserRole();
+                    }, 500);
                 } else {
                     console.log('Login failed: wrong credentials');
                     showToast('Username atau password salah!');
@@ -926,15 +973,21 @@
 
         // ==================== NAVIGATION ====================
         function showSection(sec) {
-            console.log('=== showSection ===', sec, 'User role:', currentUser?.role);
+            console.log('=== showSection ===');
+            console.log('Section:', sec);
+            console.log('User role:', currentUser?.role);
+            console.log('User NIP:', currentUser?.nip);
             
-            if (sec === 'setting' && currentUser && currentUser.role !== 'admin') {
-                showToast('Akses ditolak! Hubungi Administrator.');
-                return;
-            }
-            
-            // Admin can always access setting
-            if (sec === 'setting' && currentUser && currentUser.role === 'admin') {
+            // Double check role when accessing setting
+            if (sec === 'setting') {
+                if (!currentUser || currentUser.role !== 'admin') {
+                    console.log('Access DENIED: Non-admin trying to access Setting');
+                    showToast('Akses ditolak! Hubungi Administrator.');
+                    return;
+                }
+                // Make sure setting menu is visible for admin
+                const navSetting = document.getElementById('nav-setting');
+                if (navSetting) navSetting.classList.remove('hidden');
                 console.log('Admin accessing Setting - ALLOWED');
             }
             
@@ -952,7 +1005,21 @@
             document.getElementById('page-title').textContent = { dashboard: 'Dashboard', kartu: 'Kartu Kontrol', tunggakan: 'Tunggakan', wp: 'Data WP', setting: 'Pengaturan' }[sec];
             document.getElementById('fab-btn').classList.add('hidden');
             
-            if (sec === 'kartu') loadKartuKontrol();
+            if (sec === 'kartu') {
+                // Show riwayat for admin, single date view for petugas
+                const riwayatSection = document.getElementById('kartu-riwayat-section');
+                const tanggalSection = document.getElementById('kartu-tanggal-section');
+                
+                if (currentUser && currentUser.role === 'admin') {
+                    riwayatSection.classList.remove('hidden');
+                    tanggalSection.classList.add('hidden');
+                    loadRiwayatKartu();
+                } else {
+                    riwayatSection.classList.add('hidden');
+                    tanggalSection.classList.remove('hidden');
+                    loadKartuKontrol();
+                }
+            }
             if (sec === 'tunggakan') loadTunggakan();
             if (sec === 'wp') renderWP();
             if (sec === 'setting') { renderPetugas(); loadSettings(); loadFirebaseConfig(); }
@@ -1019,7 +1086,7 @@
             const tgl = document.getElementById('filter-tanggal').value;
             const p = getActivePetugas();
             if (!p) { showToast('Pilih petugas aktif!'); return; }
-            const existing = kartuKontrol.find(k => k.tanggal === tgl);
+            const existing = kartuKontrol.find(k => k.tanggal === tgl && k.petugasNip === p.nip); // Cek berdasarkan petugas NIP juga
             if (existing) {
                 currentKartuId = existing.id;
                 loadKartuKontrol();
@@ -1046,12 +1113,14 @@
 
         function loadKartuKontrol() {
             const tgl = document.getElementById('filter-tanggal').value;
-            const kartu = kartuKontrol.find(k => k.tanggal === tgl);
+            const filteredKartu = getFilteredKartuKontrol();
+            const kartu = filteredKartu.find(k => k.tanggal === tgl);
             if (kartu) {
                 currentKartuId = kartu.id;
                 document.getElementById('kartu-info').classList.remove('hidden');
                 document.getElementById('info-no-kartu').textContent = kartu.noKartu;
                 document.getElementById('info-jam').textContent = `${kartu.jamMulai} - ${kartu.jamSelesai || '-'}`;
+                document.getElementById('info-petugas').textContent = kartu.petugasNama;
                 document.getElementById('info-objek').textContent = kartu.items.length;
                 const lunas = kartu.items.filter(i => i.status === 'Lunas').length;
                 const tunggakan = kartu.items.filter(i => i.status !== 'Lunas').length;
@@ -1070,6 +1139,82 @@
                 document.getElementById('btn-detail-kartu').classList.add('hidden');
                 document.getElementById('kartu-list').innerHTML = '<div class="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100"><p class="text-gray-400">Belum ada kartu. Klik "Buat Baru"</p></div>';
             }
+        }
+
+        function loadRiwayatKartu() {
+            const filter = document.getElementById('filter-riwayat')?.value || 'bulan-ini';
+            const filteredKartu = getFilteredKartuKontrol();
+            let filtered = [...filteredKartu];
+            
+            // Filter berdasarkan periode
+            const now = new Date();
+            if (filter === 'bulan-ini') {
+                filtered = filteredKartu.filter(k => {
+                    const d = new Date(k.tanggal);
+                    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+                });
+            } else if (filter === 'bulan-lalu') {
+                filtered = filteredKartu.filter(k => {
+                    const d = new Date(k.tanggal);
+                    const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1);
+                    return d.getMonth() === lastMonth.getMonth() && d.getFullYear() === lastMonth.getFullYear();
+                });
+            }
+            
+            // Sort berdasarkan tanggal terbaru
+            filtered.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
+            
+            const statusConfig = {
+                'Lunas': { bg: 'bg-green-100', text: 'text-green-700', icon: '✅' },
+                'Belum Lunas': { bg: 'bg-red-100', text: 'text-red-700', icon: '❌' },
+                'Janji Bayar': { bg: 'bg-yellow-100', text: 'text-yellow-700', icon: '📅' },
+                'Tunggakan': { bg: 'bg-orange-100', text: 'text-orange-700', icon: '⚠️' }
+            };
+            
+            document.getElementById('riwayat-list').innerHTML = filtered.map(kartu => {
+                const totalOmzet = kartu.items.reduce((s, i) => s + i.omzet, 0);
+                const totalPajak = kartu.items.reduce((s, i) => s + i.pajak, 0);
+                const lunas = kartu.items.filter(i => i.status === 'Lunas').length;
+                const tunggakan = kartu.items.filter(i => i.status !== 'Lunas').length;
+                
+                return `
+                <div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 cursor-pointer hover:shadow-md transition" onclick="showDetailKartu('${kartu.id}')">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <p class="font-bold text-gray-800">${kartu.noKartu}</p>
+                                <span class="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">${kartu.petugasNama}</span>
+                            </div>
+                            <p class="text-sm text-gray-500">${formatDate(kartu.tanggal)} | ${kartu.jamMulai} - ${kartu.jamSelesai || '-'}</p>
+                        </div>
+                        <span class="text-xs text-gray-400">${kartu.items.length} objek</span>
+                    </div>
+                    
+                    <div class="grid grid-cols-4 gap-2 mb-3">
+                        <div class="bg-gray-50 rounded-lg p-2 text-center">
+                            <p class="text-xs text-gray-500">Objek</p>
+                            <p class="font-bold text-gray-800">${kartu.items.length}</p>
+                        </div>
+                        <div class="bg-blue-50 rounded-lg p-2 text-center">
+                            <p class="text-xs text-blue-500">Pajak</p>
+                            <p class="font-bold text-blue-600 text-sm">${formatRupiahCompact(totalPajak)}</p>
+                        </div>
+                        <div class="bg-green-50 rounded-lg p-2 text-center">
+                            <p class="text-xs text-green-500">Lunas</p>
+                            <p class="font-bold text-green-600">${lunas}</p>
+                        </div>
+                        <div class="bg-red-50 rounded-lg p-2 text-center">
+                            <p class="text-xs text-red-500">Tunggakan</p>
+                            <p class="font-bold text-red-600">${tunggakan}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between text-xs text-gray-500 border-t border-gray-100 pt-2">
+                        <span>NIP: ${kartu.petugasNip}</span>
+                        <span><i class="ri-eye-line"></i> Klik untuk detail</span>
+                    </div>
+                </div>
+            `}).join('') || '<div class="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100"><p class="text-gray-400">Belum ada kartu kontrol</p></div>';
         }
 
         function renderKartuItems(kartu) {
@@ -1651,7 +1796,27 @@
         }
 
         function getActivePetugas() {
+            // For petugas users, return their own info
+            if (currentUser && currentUser.role === 'petugas') {
+                return { id: currentUser.nip, nama: currentUser.nama, nip: currentUser.nip };
+            }
             return petugas.find(p => p.id === activePetugasId) || petugas[0];
+        }
+        
+        function getFilteredKartuKontrol() {
+            // Admin sees all data, petugas only sees their own
+            console.log('=== getFilteredKartuKontrol ===');
+            console.log('User role:', currentUser?.role);
+            console.log('User NIP:', currentUser?.nip);
+            console.log('Total kartuKontrol:', kartuKontrol.length);
+            
+            if (currentUser && currentUser.role === 'petugas') {
+                const filtered = kartuKontrol.filter(k => k.petugasNip === currentUser.nip);
+                console.log('Filtered kartu (petugas):', filtered.length);
+                return filtered;
+            }
+            console.log('All kartu (admin):', kartuKontrol.length);
+            return kartuKontrol;
         }
 
         function updatePetugasInfo() {
@@ -1659,6 +1824,14 @@
             if (p) {
                 document.getElementById('active-petugas-nama').textContent = p.nama || '-';
                 document.getElementById('active-petugas-nip').textContent = p.nip || '-';
+            }
+        }
+        
+        function updatePetugasInfoFromUser() {
+            // For petugas users, show their own info from currentUser
+            if (currentUser && currentUser.role === 'petugas') {
+                document.getElementById('active-petugas-nama').textContent = currentUser.nama || '-';
+                document.getElementById('active-petugas-nip').textContent = currentUser.nip || '-';
             }
         }
 
@@ -1683,14 +1856,28 @@
 
         function updateStats() {
             const today = new Date().toISOString().split('T')[0];
-            const todayKartu = kartuKontrol.filter(k => k.tanggal === today);
+            const filteredKartu = getFilteredKartuKontrol();
+            
+            // Debug log untuk melihat data yang difilter
+            console.log('=== updateStats ===');
+            console.log('User role:', currentUser?.role);
+            console.log('User NIP:', currentUser?.nip);
+            console.log('Total kartuKontrol:', kartuKontrol.length);
+            console.log('Filtered kartu (untuk stats):', filteredKartu.length);
+            
+            const todayKartu = filteredKartu.filter(k => k.tanggal === today);
             const todayItems = todayKartu.reduce((s, k) => s + k.items.length, 0);
             const todayPajak = todayKartu.reduce((s, k) => s + k.items.reduce((a, i) => a + i.pajak, 0), 0);
+            
+            console.log('Today kartu:', todayKartu.length);
+            console.log('Today items:', todayItems);
+            console.log('Today pajak:', todayPajak);
+            
             document.getElementById('stat-hari-ini').textContent = todayItems;
             document.getElementById('stat-pajak-hari').textContent = formatRupiahCompact(todayPajak);
 
             const now = new Date();
-            const monthKartu = kartuKontrol.filter(k => {
+            const monthKartu = filteredKartu.filter(k => {
                 const d = new Date(k.tanggal);
                 return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
             });
@@ -1698,7 +1885,7 @@
             document.getElementById('stat-bulan').textContent = formatRupiahCompact(monthPajak);
 
             let tunggakan = 0;
-            kartuKontrol.forEach(k => k.items.forEach(i => { if (i.status !== 'Lunas') tunggakan += i.pajak; }));
+            filteredKartu.forEach(k => k.items.forEach(i => { if (i.status !== 'Lunas') tunggakan += i.pajak; }));
             document.getElementById('stat-tunggakan').textContent = formatRupiahCompact(tunggakan);
 
             renderToday();
@@ -1706,7 +1893,8 @@
 
         function renderToday() {
             const today = new Date().toISOString().split('T')[0];
-            const items = kartuKontrol.filter(k => k.tanggal === today).flatMap(k => k.items);
+            const filteredKartu = getFilteredKartuKontrol();
+            const items = filteredKartu.filter(k => k.tanggal === today).flatMap(k => k.items);
             document.getElementById('today-count').textContent = `${items.length} data`;
             document.getElementById('today-list').innerHTML = items.slice(0, 5).map(item => {
                 const statusClass = item.status === 'Lunas' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
@@ -1730,8 +1918,9 @@
                 days.push(d.toISOString().split('T')[0]);
             }
             
+            const filteredKartu = getFilteredKartuKontrol();
             const values = days.map(day => {
-                const kartu = kartuKontrol.find(k => k.tanggal === day);
+                const kartu = filteredKartu.find(k => k.tanggal === day);
                 return kartu ? kartu.items.reduce((s, i) => s + i.pajak, 0) : 0;
             });
             
@@ -1755,7 +1944,8 @@
         function loadTunggakan() {
             const filter = document.getElementById('filter-status-tunggakan')?.value || '';
             const items = [];
-            kartuKontrol.forEach(k => k.items.forEach(i => { 
+            const filteredKartu = getFilteredKartuKontrol(); // Filter berdasarkan petugas
+            filteredKartu.forEach(k => k.items.forEach(i => { 
                 if (i.status !== 'Lunas' && (!filter || i.status === filter)) {
                     items.push({...i, tanggal: k.tanggal}); 
                 }
@@ -1789,7 +1979,8 @@
 
         function updateTunggakanBadge() {
             let count = 0;
-            kartuKontrol.forEach(k => k.items.forEach(i => { if (i.status !== 'Lunas') count++; }));
+            const filteredKartu = getFilteredKartuKontrol(); // Filter berdasarkan petugas
+            filteredKartu.forEach(k => k.items.forEach(i => { if (i.status !== 'Lunas') count++; }));
             const badge = document.getElementById('tunggakan-badge');
             if (count > 0) {
                 badge.textContent = count > 99 ? '99+' : count;
@@ -1873,6 +2064,7 @@
 
                 const wb = XLSX.utils.book_new();
 
+                // Sheet 1: Wajib Pajak
                 const wpData = wajibPajak.map((wp, i) => ({
                     'No': i + 1,
                     'NPWPD': wp.npwpd,
@@ -1884,6 +2076,7 @@
                 const wsWP = XLSX.utils.json_to_sheet(wpData);
                 XLSX.utils.book_append_sheet(wb, wsWP, 'Wajib Pajak');
 
+                // Sheet 2: Petugas
                 const petugasData = petugas.map((p, i) => ({
                     'No': i + 1,
                     'Nama': p.nama,
@@ -1893,6 +2086,59 @@
                 const wsPetugas = XLSX.utils.json_to_sheet(petugasData);
                 XLSX.utils.book_append_sheet(wb, wsPetugas, 'Petugas');
 
+                // Sheet 3: Rekap Per Petugas (Khusus Admin)
+                const rekapPetugasData = [];
+                kartuKontrol.forEach(kartu => {
+                    // Hitung total per kartu
+                    const totalOmzet = kartu.items.reduce((a, i) => a + i.omzet, 0);
+                    const totalPajak = kartu.items.reduce((a, i) => a + i.pajak, 0);
+                    const totalLunas = kartu.items.filter(i => i.status === 'Lunas').length;
+                    const totalTunggakan = kartu.items.filter(i => i.status !== 'Lunas').length;
+                    const totalTunggakanPajak = kartu.items.filter(i => i.status !== 'Lunas').reduce((a, i) => a + i.pajak, 0);
+                    
+                    rekapPetugasData.push({
+                        'No. Kartu': kartu.noKartu,
+                        'Tanggal': formatDate(kartu.tanggal),
+                        'Petugas': kartu.petugasNama,
+                        'NIP Petugas': kartu.petugasNip,
+                        'Jam Mulai': kartu.jamMulai,
+                        'Jam Selesai': kartu.jamSelesai || '-',
+                        'Jumlah Objek': kartu.items.length,
+                        'Total Omzet': totalOmzet,
+                        'Total Pajak': totalPajak,
+                        'Objek Lunas': totalLunas,
+                        'Objek Tunggakan': totalTunggakan,
+                        'Total Tunggakan Pajak': totalTunggakanPajak
+                    });
+                });
+                
+                // Sort berdasarkan tanggal
+                rekapPetugasData.sort((a, b) => new Date(a['Tanggal']) - new Date(b['Tanggal']));
+                
+                // Tambahkan nomor urut
+                rekapPetugasData.forEach((d, i) => d['No'] = i + 1);
+                
+                // Reorder columns
+                const rekapPetugasOrdered = rekapPetugasData.map(d => ({
+                    'No': d['No'],
+                    'No. Kartu': d['No. Kartu'],
+                    'Tanggal': d['Tanggal'],
+                    'Petugas': d['Petugas'],
+                    'NIP Petugas': d['NIP Petugas'],
+                    'Jam Mulai': d['Jam Mulai'],
+                    'Jam Selesai': d['Jam Selesai'],
+                    'Jumlah Objek': d['Jumlah Objek'],
+                    'Total Omzet': d['Total Omzet'],
+                    'Total Pajak': d['Total Pajak'],
+                    'Objek Lunas': d['Objek Lunas'],
+                    'Objek Tunggakan': d['Objek Tunggakan'],
+                    'Total Tunggakan Pajak': d['Total Tunggakan Pajak']
+                }));
+                
+                const wsRekap = XLSX.utils.json_to_sheet(rekapPetugasOrdered);
+                XLSX.utils.book_append_sheet(wb, wsRekap, 'Rekap Per Petugas');
+
+                // Sheet 4: Detail Semua Transaksi
                 const kartuRows = [];
                 kartuKontrol.forEach(kartu => {
                     kartu.items.forEach((item, idx) => {
@@ -1905,9 +2151,9 @@
                             'No': idx + 1,
                             'NPWPD': item.npwpd || '-',
                             'Nama WP': item.wpNama,
-                            'Omzet': formatRupiah(item.omzet),
+                            'Omzet': item.omzet,
                             'Tarif (%)': item.tarif,
-                            'Pajak': formatRupiah(item.pajak),
+                            'Pajak': item.pajak,
                             'Status': item.status,
                             'Tanggal Paraf': item.tglParaf ? formatDate(item.tglParaf) : '-',
                             'Ada Foto': item.foto ? 'Ya' : 'Tidak',
@@ -1918,13 +2164,30 @@
                     });
                 });
                 const wsKartu = XLSX.utils.json_to_sheet(kartuRows);
-                XLSX.utils.book_append_sheet(wb, wsKartu, 'Kartu Kontrol');
+                XLSX.utils.book_append_sheet(wb, wsKartu, 'Detail Transaksi');
 
+                // Sheet 5: Ringkasan
                 const totalOmzet = kartuKontrol.reduce((s, k) => s + k.items.reduce((a, i) => a + i.omzet, 0), 0);
                 const totalPajak = kartuKontrol.reduce((s, k) => s + k.items.reduce((a, i) => a + i.pajak, 0), 0);
                 const totalLunas = kartuKontrol.reduce((s, k) => s + k.items.filter(i => i.status === 'Lunas').length, 0);
                 let totalTunggakan = 0;
-                kartuKontrol.forEach(k => k.items.forEach(i => { if (i.status !== 'Lunas') totalTunggakan += i.pajak; }));
+                let totalTunggakanCount = 0;
+                kartuKontrol.forEach(k => {
+                    k.items.forEach(i => {
+                        if (i.status !== 'Lunas') {
+                            totalTunggakan += i.pajak;
+                            totalTunggakanCount++;
+                        }
+                    });
+                });
+
+                // Ringkasan per petugas
+                let rekapPerPetugasText = '';
+                kartuKontrol.forEach(kartu => {
+                    const pajakKartu = kartu.items.reduce((a, i) => a + i.pajak, 0);
+                    const omzetKartu = kartu.items.reduce((a, i) => a + i.omzet, 0);
+                    rekapPerPetugasText += `${kartu.petugasNama}: ${kartu.items.length} objek, ${formatRupiah(pajakKartu)} pajak\n`;
+                });
 
                 const ringkasanData = [
                     { 'Keterangan': 'Jumlah Wajib Pajak', 'Nilai': wajibPajak.length },
@@ -1934,9 +2197,35 @@
                     { 'Keterangan': 'Total Omzet', 'Nilai': formatRupiah(totalOmzet) },
                     { 'Keterangan': 'Total Pajak', 'Nilai': formatRupiah(totalPajak) },
                     { 'Keterangan': 'Transaksi Lunas', 'Nilai': totalLunas },
+                    { 'Keterangan': 'Transaksi Tunggakan', 'Nilai': totalTunggakanCount },
                     { 'Keterangan': 'Total Tunggakan', 'Nilai': formatRupiah(totalTunggakan) },
-                    { 'Keterangan': 'Tanggal Export', 'Nilai': new Date().toLocaleString('id-ID') }
+                    { 'Keterangan': 'Tanggal Export', 'Nilai': new Date().toLocaleString('id-ID') },
+                    { 'Keterangan': 'Export Oleh', 'Nilai': currentUser ? currentUser.nama : '-' }
                 ];
+                
+                // Tambahkan rekap per petugas
+                if (currentUser && currentUser.role === 'admin') {
+                    ringkasanData.push({ 'Keterangan': '', 'Nilai': '' });
+                    ringkasanData.push({ 'Keterangan': 'REKAP PER PETUGAS', 'Nilai': '' });
+                    kartuKontrol.forEach(kartu => {
+                        const pajakKartu = kartu.items.reduce((a, i) => a + i.pajak, 0);
+                        const objekLunas = kartu.items.filter(i => i.status === 'Lunas').length;
+                        const objekTunggakan = kartu.items.filter(i => i.status !== 'Lunas').length;
+                        const tunggakanPajak = kartu.items.filter(i => i.status !== 'Lunas').reduce((a, i) => a + i.pajak, 0);
+                        
+                        ringkasanData.push(
+                            { 'Keterangan': `${kartu.petugasNama} (${kartu.petugasNip})`, 'Nilai': '' },
+                            { 'Keterangan': '- Jumlah Kartu', 'Nilai': kartuKontrol.filter(k => k.petugasNip === kartu.petugasNip).length },
+                            { 'Keterangan': '- Total Objek', 'Nilai': kartu.items.length },
+                            { 'Keterangan': '- Objek Lunas', 'Nilai': objekLunas },
+                            { 'Keterangan': '- Objek Tunggakan', 'Nilai': objekTunggakan },
+                            { 'Keterangan': '- Total Pajak', 'Nilai': formatRupiah(pajakKartu) },
+                            { 'Keterangan': '- Tunggakan Pajak', 'Nilai': formatRupiah(tunggakanPajak) },
+                            { 'Keterangan': '', 'Nilai': '' }
+                        );
+                    });
+                }
+                
                 const wsRingkasan = XLSX.utils.json_to_sheet(ringkasanData);
                 XLSX.utils.book_append_sheet(wb, wsRingkasan, 'Ringkasan');
 
@@ -2142,6 +2431,15 @@
             }
             loadSyncSettings();
             updateFirebaseStatus();
+            
+            // Ensure admin can see setting menu
+            if (currentUser && currentUser.role === 'admin') {
+                const navSetting = document.getElementById('nav-setting');
+                if (navSetting) {
+                    navSetting.classList.remove('hidden');
+                    console.log('Setting menu shown for admin in loadFirebaseConfig');
+                }
+            }
         }
 
         function clearFirebaseConfig() {
@@ -2392,7 +2690,5 @@
             console.log('savePetugas function:', typeof savePetugas);
         };
     </script>
-    </body>
-</html>
 </body>
 </html>
