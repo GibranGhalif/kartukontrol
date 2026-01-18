@@ -769,7 +769,8 @@
             { username: 'admin', password: 'admin123', nama: 'Admin', nip: 'ADMIN001', role: 'admin' },
             { username: 'supervisor', password: 'supervisor123', nama: 'Budi Santoso', nip: 'SUPER001', role: 'admin' },
             { username: 'haris', password: 'haris123', nama: 'Haris', nip: '199001012015011001', role: 'petugas' },
-            { username: 'rian', password: 'rian123', nama: 'Rian', nip: '199205022019031002', role: 'petugas' }
+            { username: 'rian', password: 'rian123', nama: 'Rian', nip: '199205022019031002', role: 'petugas' },
+            { username: 'verifikator', password: 'verifikator123', nama: 'Verifikator', nip: 'VERIF001', role: 'verifikator' }
         ];
         let currentUser = null;
         let wajibPajak = JSON.parse(localStorage.getItem('pbjt-wp')) || [];
@@ -821,6 +822,16 @@
             document.getElementById('app-container').classList.remove('hidden');
             console.log('DOM elements hidden/shown');
             init();
+            
+            // Force reload kartu kontrol after login to ensure FAB shows
+            setTimeout(() => {
+                const fabBtn = document.getElementById('fab-btn');
+                if (fabBtn && currentUser) {
+                    console.log('Force checking FAB visibility after login');
+                    console.log('Current section:', document.querySelector('.nav-btn.active')?.dataset.section);
+                    console.log('User role:', currentUser.role);
+                }
+            }, 1000);
         }
 
         function init() {
@@ -866,6 +877,14 @@
                     console.log('Admin: Setting menu VISIBLE');
                     
                     // Load petugas info from localStorage
+                    updatePetugasInfo();
+                } else if (currentUser.role === 'verifikator') {
+                    roleBadge.textContent = '🟣 Verifikator';
+                    if (navSetting) navSetting.classList.add('hidden');
+                    if (btnChangePetugas) btnChangePetugas.classList.add('hidden');
+                    console.log('Verifikator: Setting menu HIDDEN, but sees ALL data');
+                    
+                    // Verifikator sees all data but no access to settings
                     updatePetugasInfo();
                 } else {
                     roleBadge.textContent = '🟢 Petugas: ' + currentUser.nama;
@@ -1002,15 +1021,22 @@
                 btn.classList.add('active', 'text-blue-600');
                 btn.classList.remove('text-gray-400');
             }
+            
+            // Hide FAB by default
+            const fabBtn = document.getElementById('fab-btn');
+            if (fabBtn) {
+                fabBtn.classList.add('hidden');
+                console.log('FAB button hidden by default in showSection');
+            }
+            
             document.getElementById('page-title').textContent = { dashboard: 'Dashboard', kartu: 'Kartu Kontrol', tunggakan: 'Tunggakan', wp: 'Data WP', setting: 'Pengaturan' }[sec];
-            document.getElementById('fab-btn').classList.add('hidden');
             
             if (sec === 'kartu') {
-                // Show riwayat for admin, single date view for petugas
+                // Show riwayat for admin and verifikator, single date view for petugas
                 const riwayatSection = document.getElementById('kartu-riwayat-section');
                 const tanggalSection = document.getElementById('kartu-tanggal-section');
                 
-                if (currentUser && currentUser.role === 'admin') {
+                if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'verifikator')) {
                     riwayatSection.classList.remove('hidden');
                     tanggalSection.classList.add('hidden');
                     loadRiwayatKartu();
@@ -1083,16 +1109,31 @@
 
         // ==================== KARTU KONTROL ====================
         function createNewKartu() {
-            const tgl = document.getElementById('filter-tanggal').value;
+            console.log('=== createNewKartu START ===');
+            const tanggalInput = document.getElementById('filter-tanggal');
+            if (!tanggalInput) {
+                console.error('filter-tanggal element not found');
+                showToast('Error: Tanggal input not found');
+                return;
+            }
+            const tgl = tanggalInput.value;
+            console.log('Filter tanggal:', tgl);
+            
             const p = getActivePetugas();
+            console.log('Active petugas:', p);
+            
             if (!p) { showToast('Pilih petugas aktif!'); return; }
+            
             const existing = kartuKontrol.find(k => k.tanggal === tgl && k.petugasNip === p.nip); // Cek berdasarkan petugas NIP juga
+            console.log('Existing kartu:', existing ? existing.noKartu : 'NO');
+            
             if (existing) {
                 currentKartuId = existing.id;
                 loadKartuKontrol();
                 showToast('Kartu kontrol sudah ada!');
                 return;
             }
+            
             const kartu = {
                 id: Date.now().toString(),
                 noKartu: `KK-${tgl.replace(/-/g, '')}-${String(kartuKontrol.length + 1).padStart(3, '0')}`,
@@ -1104,40 +1145,117 @@
                 jamSelesai: '',
                 items: []
             };
+            
+            console.log('Creating new kartu:', kartu);
+            
             kartuKontrol.push(kartu);
             saveKartu();
             currentKartuId = kartu.id;
+            
+            // Force show FAB after creating new kartu
+            setTimeout(() => {
+                const fabBtn = document.getElementById('fab-btn');
+                if (fabBtn) {
+                    fabBtn.classList.remove('hidden');
+                    console.log('FAB button force shown after creating new kartu');
+                }
+            }, 100);
+            
             loadKartuKontrol();
             showToast('Kartu kontrol dibuat! Silakan tambah objek pemungutan.');
+            console.log('=== createNewKartu SUCCESS ===');
         }
 
         function loadKartuKontrol() {
-            const tgl = document.getElementById('filter-tanggal').value;
-            const filteredKartu = getFilteredKartuKontrol();
-            const kartu = filteredKartu.find(k => k.tanggal === tgl);
-            if (kartu) {
-                currentKartuId = kartu.id;
-                document.getElementById('kartu-info').classList.remove('hidden');
-                document.getElementById('info-no-kartu').textContent = kartu.noKartu;
-                document.getElementById('info-jam').textContent = `${kartu.jamMulai} - ${kartu.jamSelesai || '-'}`;
-                document.getElementById('info-petugas').textContent = kartu.petugasNama;
-                document.getElementById('info-objek').textContent = kartu.items.length;
-                const lunas = kartu.items.filter(i => i.status === 'Lunas').length;
-                const tunggakan = kartu.items.filter(i => i.status !== 'Lunas').length;
-                document.getElementById('info-lunas').textContent = lunas;
-                document.getElementById('info-tunggakan').textContent = tunggakan;
-                document.getElementById('kartu-actions').classList.remove('hidden');
-                document.getElementById('jam-selesai').value = kartu.jamSelesai || '';
-                document.getElementById('fab-btn').classList.remove('hidden');
-                document.getElementById('btn-detail-kartu').classList.remove('hidden');
-                renderKartuItems(kartu);
-            } else {
-                currentKartuId = null;
-                document.getElementById('kartu-info').classList.add('hidden');
-                document.getElementById('kartu-actions').classList.add('hidden');
-                document.getElementById('fab-btn').classList.add('hidden');
-                document.getElementById('btn-detail-kartu').classList.add('hidden');
-                document.getElementById('kartu-list').innerHTML = '<div class="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100"><p class="text-gray-400">Belum ada kartu. Klik "Buat Baru"</p></div>';
+            try {
+                console.log('=== loadKartuKontrol START ===');
+                
+                // Get tanggal value safely
+                const tanggalInput = document.getElementById('filter-tanggal');
+                if (!tanggalInput) {
+                    console.error('filter-tanggal element not found');
+                    return;
+                }
+                const tgl = tanggalInput.value;
+                console.log('Filter tanggal:', tgl);
+                
+                const filteredKartu = getFilteredKartuKontrol();
+                console.log('Filtered kartu count:', filteredKartu.length);
+                console.log('User role:', currentUser?.role);
+                console.log('User NIP:', currentUser?.nip);
+                
+                if (filteredKartu.length > 0) {
+                    console.log('Filtered kartu:', filteredKartu.map(k => ({ no: k.noKartu, tanggal: k.tanggal, petugasNip: k.petugasNip })));
+                }
+                
+                const kartu = filteredKartu.find(k => k.tanggal === tgl);
+                console.log('Kartu found for date:', kartu ? kartu.noKartu : 'NO');
+                
+                if (kartu) {
+                    currentKartuId = kartu.id;
+                    
+                    // Show kartu info safely
+                    const kartuInfo = document.getElementById('kartu-info');
+                    if (kartuInfo) kartuInfo.classList.remove('hidden');
+                    
+                    document.getElementById('info-no-kartu').textContent = kartu.noKartu;
+                    document.getElementById('info-jam').textContent = `${kartu.jamMulai} - ${kartu.jamSelesai || '-'}`;
+                    document.getElementById('info-petugas').textContent = kartu.petugasNama;
+                    document.getElementById('info-objek').textContent = kartu.items.length;
+                    const lunas = kartu.items.filter(i => i.status === 'Lunas').length;
+                    const tunggakan = kartu.items.filter(i => i.status !== 'Lunas').length;
+                    document.getElementById('info-lunas').textContent = lunas;
+                    document.getElementById('info-tunggakan').textContent = tunggakan;
+                    
+                    const kartuActions = document.getElementById('kartu-actions');
+                    if (kartuActions) kartuActions.classList.remove('hidden');
+                    
+                    const jamSelesaiInput = document.getElementById('jam-selesai');
+                    if (jamSelesaiInput) jamSelesaiInput.value = kartu.jamSelesai || '';
+                    
+                    // Show FAB button with error checking
+                    const fabBtn = document.getElementById('fab-btn');
+                    if (fabBtn) {
+                        fabBtn.classList.remove('hidden');
+                        console.log('FAB button SHOWN');
+                    } else {
+                        console.error('FAB button element not found!');
+                    }
+                    
+                    const btnDetailKartu = document.getElementById('btn-detail-kartu');
+                    if (btnDetailKartu) btnDetailKartu.classList.remove('hidden');
+                    
+                    renderKartuItems(kartu);
+                    console.log('=== loadKartuKontrol SUCCESS: FAB SHOWN ===');
+                } else {
+                    currentKartuId = null;
+                    
+                    const kartuInfo = document.getElementById('kartu-info');
+                    if (kartuInfo) kartuInfo.classList.add('hidden');
+                    
+                    const kartuActions = document.getElementById('kartu-actions');
+                    if (kartuActions) kartuActions.classList.add('hidden');
+                    
+                    // Hide FAB button with error checking
+                    const fabBtn = document.getElementById('fab-btn');
+                    if (fabBtn) {
+                        fabBtn.classList.add('hidden');
+                        console.log('FAB button HIDDEN');
+                    }
+                    
+                    const btnDetailKartu = document.getElementById('btn-detail-kartu');
+                    if (btnDetailKartu) btnDetailKartu.classList.add('hidden');
+                    
+                    const kartuList = document.getElementById('kartu-list');
+                    if (kartuList) {
+                        kartuList.innerHTML = '<div class="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100"><p class="text-gray-400">Belum ada kartu. Klik "Buat Baru"</p></div>';
+                    }
+                    console.log('=== loadKartuKontrol: NO CARD FOUND ===');
+                }
+            } catch (error) {
+                console.error('Error in loadKartuKontrol:', error);
+                console.error('Error stack:', error.stack);
+                showToast('Error memuat kartu kontrol');
             }
         }
 
@@ -1213,6 +1331,16 @@
                         <span>NIP: ${kartu.petugasNip}</span>
                         <span><i class="ri-eye-line"></i> Klik untuk detail</span>
                     </div>
+                    ${(currentUser && currentUser.role === 'admin') || (currentUser && currentUser.role === 'verifikator') ? `
+                    <div class="flex gap-2 mt-3">
+                        <button onclick="editKartuFromDetail('${kartu.id}')" class="flex-1 bg-blue-100 text-blue-700 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1 hover:bg-blue-200 transition">
+                            <i class="ri-add-line"></i> Tambah Objek
+                        </button>
+                        <button onclick="printKartuById('${kartu.id}')" class="flex-1 bg-green-100 text-green-700 py-2 rounded-lg text-sm font-medium flex items-center justify-center gap-1 hover:bg-green-200 transition">
+                            <i class="ri-printer-line"></i> Cetak
+                        </button>
+                    </div>
+                    ` : ''}
                 </div>
             `}).join('') || '<div class="bg-white rounded-xl p-8 text-center shadow-sm border border-gray-100"><p class="text-gray-400">Belum ada kartu kontrol</p></div>';
         }
@@ -1592,8 +1720,41 @@
 
             html += `</div>`;
 
+            html += `</div>`;
+            
+            // Add action buttons for admin and verifikator to add items directly from detail view
+            if (currentUser && (currentUser.role === 'admin' || currentUser.role === 'verifikator')) {
+                html += `
+                    <div class="mt-4 pt-4 border-t border-gray-200">
+                        <button onclick="editKartuFromDetail('${kartu.id}')" class="w-full bg-blue-600 text-white py-3 rounded-xl font-medium hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                            <i class="ri-add-line"></i> Tambah Objek Pemungutan
+                        </button>
+                    </div>
+                `;
+            }
+            
             document.getElementById('detail-content').innerHTML = html;
             openModal('detail');
+        }
+        
+        function editKartuFromDetail(kartuId) {
+            closeModal('detail');
+            currentKartuId = kartuId;
+            const kartu = kartuKontrol.find(k => k.id === kartuId);
+            if (kartu) {
+                // Set tanggal to match the kartu
+                document.getElementById('filter-tanggal').value = kartu.tanggal;
+                // Switch to date view
+                document.getElementById('kartu-riwayat-section').classList.add('hidden');
+                document.getElementById('kartu-tanggal-section').classList.remove('hidden');
+                // Show FAB for adding items
+                const fabBtn = document.getElementById('fab-btn');
+                if (fabBtn) fabBtn.classList.remove('hidden');
+                // Load kartu items
+                loadKartuKontrol();
+                // Show toast
+                showToast(`Kartu ${kartu.noKartu} aktif. Klik + untuk menambah objek.`);
+            }
         }
 
         // ==================== WAJIB PAJAK ====================
@@ -1800,11 +1961,12 @@
             if (currentUser && currentUser.role === 'petugas') {
                 return { id: currentUser.nip, nama: currentUser.nama, nip: currentUser.nip };
             }
+            // For admin and verifikator, get from localStorage
             return petugas.find(p => p.id === activePetugasId) || petugas[0];
         }
         
         function getFilteredKartuKontrol() {
-            // Admin sees all data, petugas only sees their own
+            // Admin and verifikator see all data, petugas only sees their own
             console.log('=== getFilteredKartuKontrol ===');
             console.log('User role:', currentUser?.role);
             console.log('User NIP:', currentUser?.nip);
@@ -1815,7 +1977,8 @@
                 console.log('Filtered kartu (petugas):', filtered.length);
                 return filtered;
             }
-            console.log('All kartu (admin):', kartuKontrol.length);
+            // Admin and verifikator see all data
+            console.log('All kartu (admin/verifikator):', kartuKontrol.length);
             return kartuKontrol;
         }
 
@@ -1993,6 +2156,48 @@
         function printKartu() {
             const kartu = kartuKontrol.find(k => k.id === currentKartuId);
             if (!kartu) { showToast('Pilih kartu kontrol!'); return; }
+            
+            document.getElementById('print-daerah').textContent = settings.daerah || '-';
+            document.getElementById('print-dinas').textContent = settings.dinas;
+            document.getElementById('print-no-kartu').textContent = kartu.noKartu;
+            document.getElementById('print-tanggal').textContent = formatDate(kartu.tanggal);
+            document.getElementById('print-jam').textContent = `${kartu.jamMulai} - ${kartu.jamSelesai || '-'}`;
+            document.getElementById('print-petugas').textContent = kartu.petugasNama;
+            document.getElementById('print-nip').textContent = kartu.petugasNip;
+            document.getElementById('print-pejabat1').textContent = settings.pejabat1 || '....................';
+            document.getElementById('print-nip1').textContent = settings.nip1 || '....................';
+            document.getElementById('print-pejabat2').textContent = settings.pejabat2 || '....................';
+            document.getElementById('print-nip2').textContent = settings.nip2 || '....................';
+            
+            document.getElementById('print-table-body').innerHTML = kartu.items.map((item, i) => `
+                <tr>
+                    <td class="border border-black px-2 py-1 text-center">${i + 1}</td>
+                    <td class="border border-black px-2 py-1">${item.npwpd || '-'}</td>
+                    <td class="border border-black px-2 py-1">${item.wpNama}</td>
+                    <td class="border border-black px-2 py-1 text-right">${formatRupiah(item.omzet)}</td>
+                    <td class="border border-black px-2 py-1 text-center">${item.tarif}</td>
+                    <td class="border border-black px-2 py-1 text-right">${formatRupiah(item.pajak)}</td>
+                    <td class="border border-black px-2 py-1 text-center">${item.status}</td>
+                    <td class="border border-black px-2 py-1 text-xs">${item.ket || (item.tglJanji ? `Janji: ${formatDate(item.tglJanji)}` : '-')}</td>
+                </tr>
+            `).join('');
+            
+            const totalOmzet = kartu.items.reduce((s, i) => s + i.omzet, 0);
+            const totalPajak = kartu.items.reduce((s, i) => s + i.pajak, 0);
+            document.getElementById('print-total-omzet').textContent = formatRupiah(totalOmzet);
+            document.getElementById('print-total-pajak').textContent = formatRupiah(totalPajak);
+            document.getElementById('print-ttd-petugas').textContent = kartu.petugasNama;
+            document.getElementById('print-ttd-nip').textContent = kartu.petugasNip;
+            
+            window.print();
+        }
+        
+        function printKartuById(kartuId) {
+            const kartu = kartuKontrol.find(k => k.id === kartuId);
+            if (!kartu) { showToast('Kartu tidak ditemukan!'); return; }
+            
+            // Set current kartu for printing
+            currentKartuId = kartu.id;
             
             document.getElementById('print-daerah').textContent = settings.daerah || '-';
             document.getElementById('print-dinas').textContent = settings.dinas;
@@ -2327,7 +2532,14 @@
                 console.log('Firebase initialized successfully');
                 
                 loadSyncSettings();
-                setupRealtimeSync();
+                
+                // Setup realtime sync with error handling
+                try {
+                    setupRealtimeSync();
+                } catch (syncErr) {
+                    console.error('Error setting up realtime sync:', syncErr);
+                    // Continue even if realtime sync fails
+                }
                 
                 if (autoSyncEnabled) {
                     setTimeout(() => manualSync(), 1000);
@@ -2340,10 +2552,16 @@
                     isConnected = true;
                     updateSyncStatus('🟢', 'Terhubung ke Firebase', 'Data tersinkronisasi secara otomatis');
                     loadSyncSettings();
-                    setupRealtimeSync();
+                    try {
+                        setupRealtimeSync();
+                    } catch (syncErr) {
+                        console.error('Error setting up realtime sync:', syncErr);
+                    }
                 } else {
                     console.error('Firebase init error:', err);
                     updateSyncStatus('🔴', 'Koneksi Gagal', err.message);
+                    // Don't block the app - continue with local storage
+                    isConnected = false;
                 }
             }
         }
@@ -2424,21 +2642,30 @@
         }
 
         function loadFirebaseConfig() {
-            if (firebaseConfig) {
-                document.getElementById('firebase-api-key').value = firebaseConfig.apiKey || '';
-                document.getElementById('firebase-project-id').value = firebaseConfig.projectId || '';
-                document.getElementById('firebase-database-url').value = firebaseConfig.databaseURL || '';
-            }
-            loadSyncSettings();
-            updateFirebaseStatus();
-            
-            // Ensure admin can see setting menu
-            if (currentUser && currentUser.role === 'admin') {
-                const navSetting = document.getElementById('nav-setting');
-                if (navSetting) {
-                    navSetting.classList.remove('hidden');
-                    console.log('Setting menu shown for admin in loadFirebaseConfig');
+            try {
+                if (firebaseConfig) {
+                    const apiKeyInput = document.getElementById('firebase-api-key');
+                    const projectIdInput = document.getElementById('firebase-project-id');
+                    const databaseUrlInput = document.getElementById('firebase-database-url');
+                    
+                    if (apiKeyInput) apiKeyInput.value = firebaseConfig.apiKey || '';
+                    if (projectIdInput) projectIdInput.value = firebaseConfig.projectId || '';
+                    if (databaseUrlInput) databaseUrlInput.value = firebaseConfig.databaseURL || '';
                 }
+                loadSyncSettings();
+                updateFirebaseStatus();
+                
+                // Ensure admin can see setting menu
+                if (currentUser && currentUser.role === 'admin') {
+                    const navSetting = document.getElementById('nav-setting');
+                    if (navSetting) {
+                        navSetting.classList.remove('hidden');
+                        console.log('Setting menu shown for admin in loadFirebaseConfig');
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading firebase config:', error);
+                // Don't block the app if config loading fails
             }
         }
 
@@ -2460,13 +2687,21 @@
         }
 
         function updateFirebaseStatus() {
-            const el = document.getElementById('firebase-status');
-            if (isConnected && db) {
-                el.textContent = '🟢 Terhubung ke Firebase';
-                el.className = 'mb-3 px-3 py-2 rounded-lg text-sm bg-green-100 text-green-700';
-            } else {
-                el.textContent = '🔵 Belum diatur';
-                el.className = 'mb-3 px-3 py-2 rounded-lg text-sm bg-gray-100 text-gray-600';
+            try {
+                const el = document.getElementById('firebase-status');
+                if (!el) {
+                    console.log('firebase-status element not found');
+                    return;
+                }
+                if (isConnected && db) {
+                    el.textContent = '🟢 Terhubung ke Firebase';
+                    el.className = 'mb-3 px-3 py-2 rounded-lg text-sm bg-green-100 text-green-700';
+                } else {
+                    el.textContent = '🔵 Belum diatur';
+                    el.className = 'mb-3 px-3 py-2 rounded-lg text-sm bg-gray-100 text-gray-600';
+                }
+            } catch (error) {
+                console.error('Error updating firebase status:', error);
             }
         }
 
