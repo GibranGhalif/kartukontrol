@@ -497,7 +497,14 @@
                 </div>
                 <div>
                     <label class="text-sm block mb-1 text-gray-600">Foto Bukti Pemungutan</label>
-                    <input type="file" id="foto" accept="image/*" capture="environment" class="w-full px-4 py-3 border rounded-xl">
+                    <div class="flex gap-2">
+                        <input type="file" id="foto" accept="image/*" class="flex-1 px-4 py-3 border rounded-xl" />
+                        <button id="cameraBtn" type="button" class="px-4 py-3 bg-gray-100 rounded-xl">Gunakan Kamera</button>
+                    </div>
+
+                    <video id="video" autoplay playsinline class="hidden max-w-full rounded-xl mt-2"></video>
+                    <button id="snapBtn" type="button" class="hidden px-4 py-2 bg-blue-600 text-white rounded-xl mt-2">Ambil Foto</button>
+                    <canvas id="canvas" class="hidden"></canvas>
                 </div>
                 <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-medium hover:shadow-lg transition">
                     <i class="ri-save-line mr-2"></i>Simpan Data
@@ -1753,7 +1760,7 @@
                 // Load kartu items
                 loadKartuKontrol();
                 // Show toast
-                showToast(`Kartu ${kartu.noKartu} aktif. Klik + untuk menambah objek.`);
+                showToast(`Kartu ${kartu.noKartu} aktif. Klik + untuk menambah objek pemungutan.`);
             }
         }
 
@@ -2375,13 +2382,12 @@
                 const totalOmzet = kartuKontrol.reduce((s, k) => s + k.items.reduce((a, i) => a + i.omzet, 0), 0);
                 const totalPajak = kartuKontrol.reduce((s, k) => s + k.items.reduce((a, i) => a + i.pajak, 0), 0);
                 const totalLunas = kartuKontrol.reduce((s, k) => s + k.items.filter(i => i.status === 'Lunas').length, 0);
-                let totalTunggakan = 0;
-                let totalTunggakanCount = 0;
+                const totalTunggakan = kartuKontrol.reduce((s, k) => s + k.items.filter(i => i.status !== 'Lunas').length, 0);
+                let totalTunggakanPajak = 0;
                 kartuKontrol.forEach(k => {
                     k.items.forEach(i => {
                         if (i.status !== 'Lunas') {
-                            totalTunggakan += i.pajak;
-                            totalTunggakanCount++;
+                            totalTunggakanPajak += i.pajak;
                         }
                     });
                 });
@@ -2402,8 +2408,8 @@
                     { 'Keterangan': 'Total Omzet', 'Nilai': formatRupiah(totalOmzet) },
                     { 'Keterangan': 'Total Pajak', 'Nilai': formatRupiah(totalPajak) },
                     { 'Keterangan': 'Transaksi Lunas', 'Nilai': totalLunas },
-                    { 'Keterangan': 'Transaksi Tunggakan', 'Nilai': totalTunggakanCount },
-                    { 'Keterangan': 'Total Tunggakan', 'Nilai': formatRupiah(totalTunggakan) },
+                    { 'Keterangan': 'Transaksi Tunggakan', 'Nilai': totalTunggakan },
+                    { 'Keterangan': 'Total Tunggakan', 'Nilai': formatRupiah(totalTunggakanPajak) },
                     { 'Keterangan': 'Tanggal Export', 'Nilai': new Date().toLocaleString('id-ID') },
                     { 'Keterangan': 'Export Oleh', 'Nilai': currentUser ? currentUser.nama : '-' }
                 ];
@@ -2924,6 +2930,54 @@
             console.log('saveWP function:', typeof saveWP);
             console.log('savePetugas function:', typeof savePetugas);
         };
+
+        // ==================== CAMERA INPUT ====================
+        // For mobile browsers: file input may open camera directly
+        const fileInput = document.getElementById('foto');
+        fileInput.addEventListener('change', e => {
+          const file = e.target.files && e.target.files[0];
+          if (!file) return;
+          // handle file (upload or preview)
+          console.log('Picked file:', file);
+        });
+
+        // For real camera access (requires HTTPS)
+        const cameraBtn = document.getElementById('cameraBtn');
+        const video = document.getElementById('video');
+        const snapBtn = document.getElementById('snapBtn');
+        const canvas = document.getElementById('canvas');
+        let stream;
+
+        cameraBtn.addEventListener('click', async () => {
+          try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+            video.srcObject = stream;
+            video.classList.remove('hidden');
+            snapBtn.classList.remove('hidden');
+          } catch (err) {
+            console.error('Camera access failed, falling back to file input:', err);
+            fileInput.click();
+          }
+        });
+
+        snapBtn.addEventListener('click', () => {
+          const w = video.videoWidth, h = video.videoHeight;
+          if (!w || !h) return;
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, w, h);
+          canvas.toBlob(blob => {
+            if (!blob) return;
+            // create a File from blob to mimic file input (optional)
+            const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
+            // attach file to form or upload directly
+            console.log('Captured file:', file);
+          }, 'image/jpeg', 0.92);
+
+          if (stream) stream.getTracks().forEach(t => t.stop());
+          video.classList.add('hidden');
+          snapBtn.classList.add('hidden');
+        });
     </script>
 </body>
 </html>
