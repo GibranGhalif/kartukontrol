@@ -177,7 +177,7 @@
                 <div id="kartu-tanggal-section">
                     <div class="flex gap-2 mb-4">
                         <input type="date" id="filter-tanggal" class="flex-1 px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none" onchange="loadKartuKontrol()">
-                        <button onclick="createNewKartu()" class="bg-blue-600 text-white px-4 py-3 rounded-xl font-medium hover:bg-blue-700 transition">
+                        <button onclick="console.log('=== Buat Baru button clicked ==='); createNewKartu();" class="bg-blue-600 text-white px-4 py-3 rounded-xl font-medium hover:bg-blue-700 transition">
                             <i class="ri-add-line mr-1"></i>Buat Baru
                         </button>
                     </div>
@@ -497,14 +497,7 @@
                 </div>
                 <div>
                     <label class="text-sm block mb-1 text-gray-600">Foto Bukti Pemungutan</label>
-                    <div class="flex gap-2">
-                        <input type="file" id="foto" accept="image/*" class="flex-1 px-4 py-3 border rounded-xl" />
-                        <button id="cameraBtn" type="button" class="px-4 py-3 bg-gray-100 rounded-xl">Gunakan Kamera</button>
-                    </div>
-
-                    <video id="video" autoplay playsinline class="hidden max-w-full rounded-xl mt-2"></video>
-                    <button id="snapBtn" type="button" class="hidden px-4 py-2 bg-blue-600 text-white rounded-xl mt-2">Ambil Foto</button>
-                    <canvas id="canvas" class="hidden"></canvas>
+                    <input type="file" id="foto" accept="image/*" capture="environment" class="w-full px-4 py-3 border rounded-xl">
                 </div>
                 <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-medium hover:shadow-lg transition">
                     <i class="ri-save-line mr-2"></i>Simpan Data
@@ -808,9 +801,14 @@
             window.addEventListener('online', updateOnlineStatus);
             window.addEventListener('offline', updateOnlineStatus);
             
-            // Auto-load Firebase if config exists
+            // Auto-load Firebase if config exists (with error handling)
             if (firebaseConfig) {
-                loadFirebaseScripts();
+                try {
+                    loadFirebaseScripts();
+                } catch (err) {
+                    console.error('Error loading Firebase scripts:', err);
+                    // Continue without Firebase - app still works
+                }
             }
         });
 
@@ -825,9 +823,13 @@
         function showApp() {
             console.log('=== showApp called ===');
             console.log('currentUser:', currentUser);
+            console.log('currentUser role:', currentUser?.role);
+            console.log('currentUser NIP:', currentUser?.nip);
+            
             document.getElementById('login-page').classList.add('hidden');
             document.getElementById('app-container').classList.remove('hidden');
             console.log('DOM elements hidden/shown');
+            
             init();
             
             // Force reload kartu kontrol after login to ensure FAB shows
@@ -837,15 +839,40 @@
                     console.log('Force checking FAB visibility after login');
                     console.log('Current section:', document.querySelector('.nav-btn.active')?.dataset.section);
                     console.log('User role:', currentUser.role);
+                    
+                    // If petugas user and currently on kartu section, reload kartu kontrol
+                    if (currentUser.role === 'petugas' || currentUser.role === 'admin' || currentUser.role === 'verifikator') {
+                        console.log('Checking kartu section for FAB visibility');
+                        // Check if there's a kartu for today
+                        const today = new Date().toISOString().split('T')[0];
+                        const p = getActivePetugas();
+                        if (p) {
+                            console.log('Active petugas on login check:', p);
+                            console.log('Active petugas NIP:', p.nip);
+                        }
+                    }
                 }
             }, 1000);
         }
 
         function init() {
             try {
+                console.log('=== init START ===');
+                console.log('Current user:', currentUser);
+                console.log('Current user role:', currentUser?.role);
+                
                 updateDate();
                 renderAll();
-                updatePetugasInfo();
+                
+                // Set petugas info based on user role
+                if (currentUser && currentUser.role === 'petugas') {
+                    console.log('Setting petugas info from user for petugas role');
+                    updatePetugasInfoFromUser();
+                } else {
+                    console.log('Setting petugas info from localStorage');
+                    updatePetugasInfo();
+                }
+                
                 renderChart();
                 updateTunggakanBadge();
                 if (wajibPajak.length === 0) addSampleData();
@@ -856,8 +883,10 @@
                 }, 200);
                 
                 showOnlineStatus();
+                console.log('=== init SUCCESS ===');
             } catch (e) {
                 console.error('Error in init:', e);
+                console.error('Error stack:', e.stack);
                 // Make sure checkUserRole still runs even if init has errors
                 setTimeout(() => {
                     checkUserRole();
@@ -1092,25 +1121,35 @@
         }
 
         function openTambahModal() {
+            console.log('=== openTambahModal ===');
             const tgl = document.getElementById('filter-tanggal').value;
+            console.log('Filter tanggal:', tgl);
+            
             const kartu = kartuKontrol.find(k => k.tanggal === tgl);
+            console.log('Kartu found by date:', kartu ? kartu.noKartu : 'NO');
             
             if (!kartu) {
                 showToast('Buat kartu kontrol dulu dengan klik tombol "Buat Baru"!');
+                console.log('No kartu found for date, asking user to create new kartu');
                 return;
             }
             
             if (!currentKartuId) {
                 showToast('Kartu kontrol tidak ditemukan!');
+                console.log('No currentKartuId set');
                 return;
             }
             
             const p = getActivePetugas();
+            console.log('Active petugas check:', p);
+            
             if (!p) {
                 showToast('Set petugas aktif terlebih dahulu!');
+                console.log('No active petugas found');
                 return;
             }
             
+            console.log('Opening tambah modal...');
             openModal('tambah');
         }
 
@@ -1125,13 +1164,21 @@
             }
             const tgl = tanggalInput.value;
             console.log('Filter tanggal:', tgl);
+            console.log('Current user:', currentUser);
+            console.log('User role:', currentUser?.role);
             
             const p = getActivePetugas();
             console.log('Active petugas:', p);
+            console.log('Active petugas NIP:', p?.nip);
+            console.log('Active petugas Nama:', p?.nama);
             
-            if (!p) { showToast('Pilih petugas aktif!'); return; }
+            if (!p) { 
+                console.error('No active petugas found');
+                showToast('Pilih petugas aktif!'); 
+                return; 
+            }
             
-            const existing = kartuKontrol.find(k => k.tanggal === tgl && k.petugasNip === p.nip); // Cek berdasarkan petugas NIP juga
+            const existing = kartuKontrol.find(k => k.tanggal === tgl && k.petugasNip === p.nip);
             console.log('Existing kartu:', existing ? existing.noKartu : 'NO');
             
             if (existing) {
@@ -1141,11 +1188,15 @@
                 return;
             }
             
+            // Generate unique kartu number based on petugas NIP
+            const kartuCountForPetugas = kartuKontrol.filter(k => k.petugasNip === p.nip).length;
+            const kartuNumber = String(kartuCountForPetugas + 1).padStart(3, '0');
+            
             const kartu = {
                 id: Date.now().toString(),
-                noKartu: `KK-${tgl.replace(/-/g, '')}-${String(kartuKontrol.length + 1).padStart(3, '0')}`,
+                noKartu: `KK-${tgl.replace(/-/g, '')}-${kartuNumber}`,
                 tanggal: tgl,
-                petugasId: p.id,
+                petugasId: p.id || p.nip,
                 petugasNama: p.nama,
                 petugasNip: p.nip,
                 jamMulai: new Date().toTimeString().slice(0, 5),
@@ -1159,14 +1210,22 @@
             saveKartu();
             currentKartuId = kartu.id;
             
-            // Force show FAB after creating new kartu
-            setTimeout(() => {
-                const fabBtn = document.getElementById('fab-btn');
-                if (fabBtn) {
-                    fabBtn.classList.remove('hidden');
-                    console.log('FAB button force shown after creating new kartu');
-                }
-            }, 100);
+            // Force show FAB after creating new kartu with multiple checks
+            const fabBtn = document.getElementById('fab-btn');
+            if (fabBtn) {
+                fabBtn.classList.remove('hidden');
+                console.log('FAB button shown immediately');
+                
+                setTimeout(() => {
+                    if (fabBtn) fabBtn.classList.remove('hidden');
+                    console.log('FAB button force shown (50ms)');
+                }, 50);
+                
+                setTimeout(() => {
+                    if (fabBtn) fabBtn.classList.remove('hidden');
+                    console.log('FAB button force shown (100ms)');
+                }, 100);
+            }
             
             loadKartuKontrol();
             showToast('Kartu kontrol dibuat! Silakan tambah objek pemungutan.');
@@ -1749,18 +1808,39 @@
             currentKartuId = kartuId;
             const kartu = kartuKontrol.find(k => k.id === kartuId);
             if (kartu) {
+                console.log('=== editKartuFromDetail ===');
+                console.log('Setting kartu ID:', kartuId);
+                console.log('Setting tanggal:', kartu.tanggal);
+                
                 // Set tanggal to match the kartu
                 document.getElementById('filter-tanggal').value = kartu.tanggal;
                 // Switch to date view
                 document.getElementById('kartu-riwayat-section').classList.add('hidden');
                 document.getElementById('kartu-tanggal-section').classList.remove('hidden');
-                // Show FAB for adding items
+                
+                // Show FAB for adding items with multiple delays to ensure it works
                 const fabBtn = document.getElementById('fab-btn');
-                if (fabBtn) fabBtn.classList.remove('hidden');
+                if (fabBtn) {
+                    fabBtn.classList.remove('hidden');
+                    console.log('FAB button shown immediately');
+                    
+                    // Force show again after DOM updates
+                    setTimeout(() => {
+                        fabBtn.classList.remove('hidden');
+                        console.log('FAB button forced shown (50ms)');
+                    }, 50);
+                    
+                    setTimeout(() => {
+                        fabBtn.classList.remove('hidden');
+                        console.log('FAB button forced shown (100ms)');
+                    }, 100);
+                }
+                
                 // Load kartu items
                 loadKartuKontrol();
+                
                 // Show toast
-                showToast(`Kartu ${kartu.noKartu} aktif. Klik + untuk menambah objek pemungutan.`);
+                showToast(`Kartu ${kartu.noKartu} aktif. Klik + untuk menambah objek.`);
             }
         }
 
@@ -1964,12 +2044,31 @@
         }
 
         function getActivePetugas() {
-            // For petugas users, return their own info
+            console.log('=== getActivePetugas ===');
+            console.log('Current user:', currentUser);
+            console.log('User role:', currentUser?.role);
+            console.log('activePetugasId:', activePetugasId);
+            console.log('Petugas array:', petugas);
+            
+            // For petugas users, return their own info from currentUser
             if (currentUser && currentUser.role === 'petugas') {
-                return { id: currentUser.nip, nama: currentUser.nama, nip: currentUser.nip };
+                const petugasInfo = { id: currentUser.nip, nama: currentUser.nama, nip: currentUser.nip };
+                console.log('Returning petugas user info:', petugasInfo);
+                return petugasInfo;
             }
-            // For admin and verifikator, get from localStorage
-            return petugas.find(p => p.id === activePetugasId) || petugas[0];
+            // For admin and verifikator, get from localStorage petugas array
+            const found = petugas.find(p => p.id === activePetugasId);
+            if (found) {
+                console.log('Returning active petugas from localStorage:', found);
+                return found;
+            }
+            // Fallback to first petugas if exists
+            if (petugas && petugas.length > 0) {
+                console.log('Returning first petugas as fallback:', petugas[0]);
+                return petugas[0];
+            }
+            console.log('No petugas found!');
+            return null;
         }
         
         function getFilteredKartuKontrol() {
@@ -1998,14 +2097,49 @@
         }
         
         function updatePetugasInfoFromUser() {
+            console.log('=== updatePetugasInfoFromUser ===');
+            console.log('Current user:', currentUser);
             // For petugas users, show their own info from currentUser
             if (currentUser && currentUser.role === 'petugas') {
+                console.log('Setting petugas info from currentUser');
+                console.log('User nama:', currentUser.nama);
+                console.log('User NIP:', currentUser.nip);
                 document.getElementById('active-petugas-nama').textContent = currentUser.nama || '-';
                 document.getElementById('active-petugas-nip').textContent = currentUser.nip || '-';
+                console.log('Petugas info set in UI');
             }
         }
 
         // ==================== HELPERS ====================
+        // Force ensure FAB is visible if card exists
+        function ensureFABVisibility() {
+            try {
+                const fabBtn = document.getElementById('fab-btn');
+                const currentSection = document.querySelector('.section:not(.hidden)');
+                
+                if (!fabBtn || !currentSection) return;
+                
+                // Only show FAB on kartu section
+                if (currentSection.id !== 'section-kartu') {
+                    fabBtn.classList.add('hidden');
+                    return;
+                }
+                
+                // Check if current kartu exists
+                const kartu = kartuKontrol.find(k => k.id === currentKartuId);
+                
+                if (kartu && kartu.items) {
+                    fabBtn.classList.remove('hidden');
+                    console.log('FAB button ensured visible (kartu exists)');
+                } else {
+                    fabBtn.classList.add('hidden');
+                    console.log('FAB button hidden (no kartu)');
+                }
+            } catch (err) {
+                console.error('Error in ensureFABVisibility:', err);
+            }
+        }
+        
         function hitung() {
             const omzet = (parseFloat(document.getElementById('omzet-m').value) || 0) + (parseFloat(document.getElementById('omzet-n').value) || 0);
             const tarif = parseFloat(document.getElementById('tarif').value) || 10;
@@ -2382,12 +2516,13 @@
                 const totalOmzet = kartuKontrol.reduce((s, k) => s + k.items.reduce((a, i) => a + i.omzet, 0), 0);
                 const totalPajak = kartuKontrol.reduce((s, k) => s + k.items.reduce((a, i) => a + i.pajak, 0), 0);
                 const totalLunas = kartuKontrol.reduce((s, k) => s + k.items.filter(i => i.status === 'Lunas').length, 0);
-                const totalTunggakan = kartuKontrol.reduce((s, k) => s + k.items.filter(i => i.status !== 'Lunas').length, 0);
-                let totalTunggakanPajak = 0;
+                let totalTunggakan = 0;
+                let totalTunggakanCount = 0;
                 kartuKontrol.forEach(k => {
                     k.items.forEach(i => {
                         if (i.status !== 'Lunas') {
-                            totalTunggakanPajak += i.pajak;
+                            totalTunggakan += i.pajak;
+                            totalTunggakanCount++;
                         }
                     });
                 });
@@ -2408,8 +2543,8 @@
                     { 'Keterangan': 'Total Omzet', 'Nilai': formatRupiah(totalOmzet) },
                     { 'Keterangan': 'Total Pajak', 'Nilai': formatRupiah(totalPajak) },
                     { 'Keterangan': 'Transaksi Lunas', 'Nilai': totalLunas },
-                    { 'Keterangan': 'Transaksi Tunggakan', 'Nilai': totalTunggakan },
-                    { 'Keterangan': 'Total Tunggakan', 'Nilai': formatRupiah(totalTunggakanPajak) },
+                    { 'Keterangan': 'Transaksi Tunggakan', 'Nilai': totalTunggakanCount },
+                    { 'Keterangan': 'Total Tunggakan', 'Nilai': formatRupiah(totalTunggakan) },
                     { 'Keterangan': 'Tanggal Export', 'Nilai': new Date().toLocaleString('id-ID') },
                     { 'Keterangan': 'Export Oleh', 'Nilai': currentUser ? currentUser.nama : '-' }
                 ];
@@ -2930,54 +3065,6 @@
             console.log('saveWP function:', typeof saveWP);
             console.log('savePetugas function:', typeof savePetugas);
         };
-
-        // ==================== CAMERA INPUT ====================
-        // For mobile browsers: file input may open camera directly
-        const fileInput = document.getElementById('foto');
-        fileInput.addEventListener('change', e => {
-          const file = e.target.files && e.target.files[0];
-          if (!file) return;
-          // handle file (upload or preview)
-          console.log('Picked file:', file);
-        });
-
-        // For real camera access (requires HTTPS)
-        const cameraBtn = document.getElementById('cameraBtn');
-        const video = document.getElementById('video');
-        const snapBtn = document.getElementById('snapBtn');
-        const canvas = document.getElementById('canvas');
-        let stream;
-
-        cameraBtn.addEventListener('click', async () => {
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
-            video.srcObject = stream;
-            video.classList.remove('hidden');
-            snapBtn.classList.remove('hidden');
-          } catch (err) {
-            console.error('Camera access failed, falling back to file input:', err);
-            fileInput.click();
-          }
-        });
-
-        snapBtn.addEventListener('click', () => {
-          const w = video.videoWidth, h = video.videoHeight;
-          if (!w || !h) return;
-          canvas.width = w; canvas.height = h;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(video, 0, 0, w, h);
-          canvas.toBlob(blob => {
-            if (!blob) return;
-            // create a File from blob to mimic file input (optional)
-            const file = new File([blob], 'capture.jpg', { type: 'image/jpeg' });
-            // attach file to form or upload directly
-            console.log('Captured file:', file);
-          }, 'image/jpeg', 0.92);
-
-          if (stream) stream.getTracks().forEach(t => t.stop());
-          video.classList.add('hidden');
-          snapBtn.classList.add('hidden');
-        });
     </script>
 </body>
 </html>
