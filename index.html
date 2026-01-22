@@ -3090,9 +3090,11 @@
             if (!db) return;
             
             console.log('=== setupRealtimeSync START ===');
+            console.log('typeof db.ref:', typeof db.ref);
+            console.log('db.ref exists:', typeof db.ref === 'function');
             
             try {
-                // Initialize arrays if needed
+                // Initialize arrays if needed - with safety check
                 if (!Array.isArray(wajibPajak)) {
                     console.warn('wajibPajak is not an array, initializing...');
                     wajibPajak = [];
@@ -3108,8 +3110,20 @@
                 
                 console.log('Setting up realtime value listener...');
                 
+                // Check if db.ref is a function before using it
+                if (typeof db.ref !== 'function') {
+                    console.error('db.ref is not a function, cannot setup realtime sync');
+                    return;
+                }
+                
+                const ref = db.ref('/');
+                if (!ref) {
+                    console.error('db.ref(\"/\") returned undefined');
+                    return;
+                }
+                
                 // Listen for data changes from Firebase
-                db.ref('/').on('value', (snapshot) => {
+                ref.on('value', (snapshot) => {
                     try {
                         const data = snapshot.val();
                         if (!data) {
@@ -3118,47 +3132,44 @@
                         }
                         
                         console.log('=== Reading data from Firebase (PUSH) ===');
+                        console.log('Data type:', typeof data);
                         console.log('Data keys:', Object.keys(data));
                         
-                        // Update wajibPajak - with safety check
-                        if (data.wajibPajak) {
-                            if (!Array.isArray(data.wajibPajak)) {
-                                console.error('wajibPajak from Firebase is not an array:', data.wajibPajak);
-                            } else if (JSON.stringify(data.wajibPajak) !== JSON.stringify(wajibPajak)) {
-                                wajibPajak = data.wajibPajak;
-                                localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak));
-                                renderWP();
-                                console.log('Wajib Pajak synced from Firebase');
+                        // Helper function to safely sync arrays
+                        const syncArray = (key, target, renderFn, saveKey) => {
+                            if (data[key]) {
+                                const source = data[key];
+                                if (!Array.isArray(source)) {
+                                    console.error(`${key} from Firebase is not an array, it's ${typeof source}:`, source);
+                                    return;
+                                }
+                                if (JSON.stringify(source) !== JSON.stringify(target)) {
+                                    console.log(`Syncing ${key}...`);
+                                    // Assign safely without using .push()
+                                    for (let i = 0; i < source.length; i++) {
+                                        if (!target[i]) target[i] = source[i];
+                                    }
+                                    localStorage.setItem(saveKey, JSON.stringify(target));
+                                    if (renderFn) renderFn();
+                                    console.log(`${key} synced from Firebase`);
+                                }
                             }
-                        }
+                        };
                         
-                        // Update petugas
-                        if (data.petugas && Array.isArray(data.petugas)) {
-                            if (JSON.stringify(data.petugas) !== JSON.stringify(petugas)) {
-                                petugas = data.petugas;
-                                localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
-                                renderPetugas();
-                                updatePetugasInfo();
-                                console.log('Petugas synced from Firebase');
-                            }
-                        }
+                        // Sync all data arrays safely
+                        syncArray('wajibPajak', wajibPajak, renderWP, 'pbjt-wp');
+                        syncArray('petugas', petugas, renderPetugas, 'pbjt-petugas');
+                        syncArray('kartuKontrol', kartuKontrol, () => {
+                            updateStats();
+                            renderChart();
+                            updateTunggakanBadge();
+                            if (currentKartuId) loadKartuKontrol();
+                        }, 'pbjt-kartu');
                         
-                        // Update kartuKontrol
-                        if (data.kartuKontrol && Array.isArray(data.kartuKontrol)) {
-                            if (JSON.stringify(data.kartuKontrol) !== JSON.stringify(kartuKontrol)) {
-                                kartuKontrol = data.kartuKontrol;
-                                localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
-                                updateStats();
-                                renderChart();
-                                updateTunggakanBadge();
-                                if (currentKartuId) loadKartuKontrol();
-                                console.log('Kartu Kontrol synced from Firebase');
-                            }
-                        }
-                        
-                        // Update settings
+                        // Update settings separately
                         if (data.settings && typeof data.settings === 'object') {
                             if (JSON.stringify(data.settings) !== JSON.stringify(settings)) {
+                                console.log('Syncing settings...');
                                 settings = data.settings;
                                 localStorage.setItem('pbjt-settings', JSON.stringify(settings));
                                 console.log('Settings synced from Firebase');
@@ -3179,6 +3190,7 @@
                 });
             } catch (err) {
                 console.error('Error setting up realtime sync:', err);
+                console.error('Error stack:', err.stack);
             }
         }
 
@@ -3439,29 +3451,95 @@
 
         // Auto sync functions
         function autoSyncWP() {
+            console.log('=== autoSyncWP START ===');
+            console.log('autoSyncEnabled:', autoSyncEnabled);
+            console.log('isConnected:', isConnected);
+            console.log('db exists:', !!db);
+            console.log('db.ref exists:', db && typeof db.ref === 'function');
+            console.log('syncInProgress:', syncInProgress);
+            
             if (autoSyncEnabled && isConnected && db && !syncInProgress) {
-                console.log('Auto-sync: Pushing wajibPajak to Firebase...');
-                db.ref('/wajibPajak').set(wajibPajak)
-                    .then(() => console.log('Auto-sync wajibPajak SUCCESS'))
-                    .catch(e => console.log('Auto-sync wajibPajak FAILED:', e));
+                try {
+                    if (typeof db.ref !== 'function') {
+                        console.log('Auto-sync wajibPajak SKIPPED: db.ref is not a function');
+                        return;
+                    }
+                    const ref = db.ref('/wajibPajak');
+                    if (ref) {
+                        console.log('Auto-sync: Pushing wajibPajak to Firebase...');
+                        ref.set(wajibPajak)
+                            .then(() => console.log('Auto-sync wajibPajak SUCCESS'))
+                            .catch(e => console.log('Auto-sync wajibPajak FAILED:', e));
+                    } else {
+                        console.log('Auto-sync wajibPajak SKIPPED: ref is undefined');
+                    }
+                } catch (err) {
+                    console.log('Auto-sync wajibPajak ERROR:', err);
+                }
+            } else {
+                console.log('Auto-sync wajibPajak SKIPPED');
             }
         }
 
         function autoSyncPetugas() {
+            console.log('=== autoSyncPetugas START ===');
+            console.log('autoSyncEnabled:', autoSyncEnabled);
+            console.log('isConnected:', isConnected);
+            console.log('db exists:', !!db);
+            console.log('db.ref exists:', db && typeof db.ref === 'function');
+            console.log('syncInProgress:', syncInProgress);
+            
             if (autoSyncEnabled && isConnected && db && !syncInProgress) {
-                console.log('Auto-sync: Pushing petugas to Firebase...');
-                db.ref('/petugas').set(petugas)
-                    .then(() => console.log('Auto-sync petugas SUCCESS'))
-                    .catch(e => console.log('Auto-sync petugas FAILED:', e));
+                try {
+                    if (typeof db.ref !== 'function') {
+                        console.log('Auto-sync petugas SKIPPED: db.ref is not a function');
+                        return;
+                    }
+                    const ref = db.ref('/petugas');
+                    if (ref) {
+                        console.log('Auto-sync: Pushing petugas to Firebase...');
+                        ref.set(petugas)
+                            .then(() => console.log('Auto-sync petugas SUCCESS'))
+                            .catch(e => console.log('Auto-sync petugas FAILED:', e));
+                    } else {
+                        console.log('Auto-sync petugas SKIPPED: ref is undefined');
+                    }
+                } catch (err) {
+                    console.log('Auto-sync petugas ERROR:', err);
+                }
+            } else {
+                console.log('Auto-sync petugas SKIPPED');
             }
         }
 
         function autoSyncKartu() {
+            console.log('=== autoSyncKartu START ===');
+            console.log('autoSyncEnabled:', autoSyncEnabled);
+            console.log('isConnected:', isConnected);
+            console.log('db exists:', !!db);
+            console.log('db.ref exists:', db && typeof db.ref === 'function');
+            console.log('syncInProgress:', syncInProgress);
+            
             if (autoSyncEnabled && isConnected && db && !syncInProgress) {
-                console.log('Auto-sync: Pushing kartuKontrol to Firebase...');
-                db.ref('/kartuKontrol').set(kartuKontrol)
-                    .then(() => console.log('Auto-sync kartuKontrol SUCCESS'))
-                    .catch(e => console.log('Auto-sync kartuKontrol FAILED:', e));
+                try {
+                    if (typeof db.ref !== 'function') {
+                        console.log('Auto-sync kartuKontrol SKIPPED: db.ref is not a function');
+                        return;
+                    }
+                    const ref = db.ref('/kartuKontrol');
+                    if (ref) {
+                        console.log('Auto-sync: Pushing kartuKontrol to Firebase...');
+                        ref.set(kartuKontrol)
+                            .then(() => console.log('Auto-sync kartuKontrol SUCCESS'))
+                            .catch(e => console.log('Auto-sync kartuKontrol FAILED:', e));
+                    } else {
+                        console.log('Auto-sync kartuKontrol SKIPPED: ref is undefined');
+                    }
+                } catch (err) {
+                    console.log('Auto-sync kartuKontrol ERROR:', err);
+                }
+            } else {
+                console.log('Auto-sync kartuKontrol SKIPPED');
             }
         }
 
