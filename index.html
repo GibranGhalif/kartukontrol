@@ -499,7 +499,7 @@
                     <label class="text-sm block mb-1 text-gray-600">Foto Bukti Pemungutan</label>
                     <input type="file" id="foto" accept="image/*" capture="environment" class="w-full px-4 py-3 border rounded-xl">
                 </div>
-                <button type="submit" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-medium hover:shadow-lg transition">
+                <button type="button" onclick="handleTambahSubmit()" class="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-xl font-medium hover:shadow-lg transition">
                     <i class="ri-save-line mr-2"></i>Simpan Data
                 </button>
             </form>
@@ -1144,21 +1144,34 @@
 
         function openTambahModal() {
             console.log('=== openTambahModal ===');
+            console.log('currentUser:', currentUser);
+            console.log('currentKartuId:', currentKartuId);
+            console.log('kartuKontrol length:', kartuKontrol.length);
+            
             const tgl = document.getElementById('filter-tanggal').value;
             console.log('Filter tanggal:', tgl);
             
-            const kartu = kartuKontrol.find(k => k.tanggal === tgl);
-            console.log('Kartu found by date:', kartu ? kartu.noKartu : 'NO');
-            
-            if (!kartu) {
-                showToast('Buat kartu kontrol dulu dengan klik tombol "Buat Baru"!');
-                console.log('No kartu found for date, asking user to create new kartu');
+            // Cek apakah user sudah login
+            if (!currentUser) {
+                showToast('Silakan login terlebih dahulu!');
                 return;
             }
             
+            // Cek currentKartuId
             if (!currentKartuId) {
-                showToast('Kartu kontrol tidak ditemukan!');
-                console.log('No currentKartuId set');
+                console.log('No currentKartuId');
+                showToast('Kartu kontrol tidak ditemukan! Silakan buat kartu kontrol dulu dengan klik tombol "Buat Baru".');
+                return;
+            }
+            
+            // Cari kartu kontrol berdasarkan currentKartuId (lebih reliable)
+            const kartu = kartuKontrol.find(k => k.id === currentKartuId);
+            console.log('Kartu found by currentKartuId:', kartu ? kartu.noKartu : 'NO');
+            
+            if (!kartu) {
+                console.log('Kartu control not found for currentKartuId:', currentKartuId);
+                console.log('Available kartu IDs:', kartuKontrol.map(k => k.id));
+                showToast('Kartu kontrol tidak ditemukan! Silakan buat kartu kontrol dulu.');
                 return;
             }
             
@@ -1171,7 +1184,7 @@
                 return;
             }
             
-            console.log('Opening tambah modal...');
+            console.log('All checks passed. Opening tambah modal...');
             openModal('tambah');
         }
 
@@ -1532,52 +1545,158 @@
         }
 
         function addItem() {
-            const kartu = kartuKontrol.find(k => k.id === currentKartuId);
-            if (!kartu) { showToast('Buat kartu kontrol dulu!'); return; }
+            console.log('=== addItem START ===');
             
-            const wpId = document.getElementById('tambah-wp').value;
-            const wp = wajibPajak.find(w => w.id === wpId);
-            if (!wp) { showToast('Pilih Wajib Pajak!'); return; }
-            
-            const omzetM = parseFloat(document.getElementById('omzet-m').value) || 0;
-            const omzetN = parseFloat(document.getElementById('omzet-n').value) || 0;
-            const tarif = parseFloat(document.getElementById('tarif').value) || 10;
-            const status = document.getElementById('status').value;
-            const omzet = omzetM + omzetN;
-            const pajak = omzet * (tarif / 100);
-            const tglJanji = document.getElementById('tgl-janji').value || null;
-            const ket = document.getElementById('ket').value || '';
-            const noTelp = document.getElementById('no-telp').value || '';
-            const fotoInput = document.getElementById('foto');
-            
-            let foto = null;
-            if (fotoInput.files && fotoInput.files[0]) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    saveItemWithPhoto(kartu, wpId, wp, omzet, tarif, pajak, status, tglJanji, ket, noTelp, e.target.result);
-                };
-                reader.readAsDataURL(fotoInput.files[0]);
-                return;
+            try {
+                // Cek currentKartuId
+                if (!currentKartuId) {
+                    console.log('No currentKartuId');
+                    showToast('Kartu kontrol tidak ditemukan! Silakan buat kartu kontrol dulu.');
+                    return;
+                }
+                
+                // Cari kartu kontrol
+                const kartu = kartuKontrol.find(k => k.id === currentKartuId);
+                console.log('Kartu found:', kartu ? 'YES' : 'NO');
+                
+                if (!kartu) {
+                    console.log('Kartu control not found in kartuKontrol array');
+                    showToast('Kartu kontrol tidak ditemukan! Silakan buat kartu kontrol dulu.');
+                    return;
+                }
+                
+                // Ambil nilai form
+                const wpId = document.getElementById('tambah-wp').value;
+                console.log('WP ID selected:', wpId);
+                
+                if (!wpId || wpId === '') {
+                    showToast('Pilih Wajib Pajak!');
+                    return;
+                }
+                
+                const wp = wajibPajak.find(w => w.id === wpId);
+                console.log('WP found:', wp ? 'YES' : 'NO');
+                console.log('WP data:', wp);
+                
+                if (!wp) {
+                    showToast('Wajib Pajak tidak ditemukan!');
+                    return;
+                }
+                
+                const omzetM = parseFloat(document.getElementById('omzet-m').value) || 0;
+                const omzetN = parseFloat(document.getElementById('omzet-n').value) || 0;
+                const tarif = parseFloat(document.getElementById('tarif').value) || 10;
+                const status = document.getElementById('status').value;
+                const omzet = omzetM + omzetN;
+                const pajak = omzet * (tarif / 100);
+                const tglJanji = document.getElementById('tgl-janji').value || null;
+                const ket = document.getElementById('ket').value || '';
+                const noTelp = document.getElementById('no-telp').value || '';
+                const fotoInput = document.getElementById('foto');
+                
+                console.log('Data to save:');
+                console.log('- WP:', wp.nama);
+                console.log('- Omzet M:', omzetM);
+                console.log('- Omzet N:', omzetN);
+                console.log('- Total Omzet:', omzet);
+                console.log('- Tarif:', tarif);
+                console.log('- Pajak:', pajak);
+                console.log('- Status:', status);
+                console.log('- Tgl Janji:', tglJanji);
+                console.log('- Ket:', ket);
+                console.log('- No Telp:', noTelp);
+                
+                // Proses foto jika ada
+                if (fotoInput.files && fotoInput.files[0]) {
+                    console.log('Processing photo...');
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        console.log('Photo loaded, saving with photo...');
+                        saveItemWithPhoto(kartu, wpId, wp, omzet, tarif, pajak, status, tglJanji, ket, noTelp, e.target.result);
+                    };
+                    reader.onerror = function(e) {
+                        console.error('Error reading photo:', e);
+                        showToast('Error membaca foto!');
+                    };
+                    reader.readAsDataURL(fotoInput.files[0]);
+                    return;
+                }
+                
+                // Simpan tanpa foto
+                console.log('Saving without photo...');
+                saveItemWithPhoto(kartu, wpId, wp, omzet, tarif, pajak, status, tglJanji, ket, noTelp, null);
+                
+            } catch (error) {
+                console.error('Error in addItem:', error);
+                console.error('Error stack:', error.stack);
+                showToast('Error: ' + error.message);
             }
-            
-            saveItemWithPhoto(kartu, wpId, wp, omzet, tarif, pajak, status, tglJanji, ket, noTelp, null);
         }
 
         function saveItemWithPhoto(kartu, wpId, wp, omzet, tarif, pajak, status, tglJanji, ket, noTelp, foto) {
-            const item = {
-                id: Date.now().toString(),
-                wpId, npwpd: wp.npwpd, wpNama: wp.nama,
-                omzet, tarif, pajak, status, tglJanji, ket, noTelp, foto,
-                paraf: null, tglParaf: null
-            };
-            kartu.items.push(item);
-            saveKartu();
-            loadKartuKontrol();
-            updateStats();
-            updateTunggakanBadge();
-            renderChart();
-            closeModal('tambah');
-            showToast('Data tersimpan!');
+            console.log('=== saveItemWithPhoto START ===');
+            console.log('Kartu ID:', kartu.id);
+            console.log('WP:', wp.nama, ', Omzet:', omzet, ', Pajak:', pajak);
+            console.log('Foto size:', foto ? foto.length : 'no photo');
+            
+            try {
+                // Buat object item
+                const item = {
+                    id: Date.now().toString(),
+                    wpId: wpId,
+                    npwpd: wp.npwpd,
+                    wpNama: wp.nama,
+                    omzet: omzet,
+                    tarif: tarif,
+                    pajak: pajak,
+                    status: status,
+                    tglJanji: tglJanji,
+                    ket: ket,
+                    noTelp: noTelp,
+                    foto: foto,
+                    paraf: null,
+                    tglParaf: null
+                };
+                
+                console.log('Item object created:', item);
+                
+                // Tambah item ke kartu
+                kartu.items.push(item);
+                console.log('Item pushed to kartu.items. Total items:', kartu.items.length);
+                
+                // Simpan ke localStorage
+                localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
+                console.log('Kartu saved to localStorage');
+                
+                // Reload kartu kontrol
+                loadKartuKontrol();
+                console.log('Kartu kontrol reloaded');
+                
+                // Update stats
+                updateStats();
+                console.log('Stats updated');
+                
+                // Update badge
+                updateTunggakanBadge();
+                console.log('Badge updated');
+                
+                // Render chart
+                renderChart();
+                console.log('Chart rendered');
+                
+                // Tutup modal
+                closeModal('tambah');
+                console.log('Modal closed');
+                
+                // Show toast
+                showToast('Data tersimpan!');
+                console.log('=== saveItemWithPhoto SUCCESS ===');
+                
+            } catch (error) {
+                console.error('Error in saveItemWithPhoto:', error);
+                console.error('Error stack:', error.stack);
+                showToast('Error menyimpan data: ' + error.message);
+            }
         }
 
         function editItem(id) {
@@ -1636,8 +1755,11 @@
         }
 
         function saveKartu() {
-            localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
-            autoSyncKartu();
+            try {
+                localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
+            } catch (error) {
+                console.error('Error saving kartu:', error);
+            }
         }
 
         // ==================== SIGNATURE ====================
@@ -1735,6 +1857,150 @@
                 loadKartuKontrol();
                 closeModal('paraf');
                 showToast('Paraf tersimpan!');
+            }
+        }
+
+        function handleTambahSubmit() {
+            console.log('=== handleTambahSubmit START ===');
+            
+            try {
+                // Cek apakah user sudah login
+                if (!currentUser) {
+                    showToast('Silakan login terlebih dahulu!');
+                    return;
+                }
+                console.log('✓ User logged in');
+                
+                // Cek currentKartuId
+                if (!currentKartuId) {
+                    showToast('Kartu kontrol tidak ditemukan! Silakan buat kartu kontrol dulu.');
+                    return;
+                }
+                console.log('✓ currentKartuId:', currentKartuId);
+                
+                // Cari kartu
+                const kartu = kartuKontrol.find(k => k.id === currentKartuId);
+                if (!kartu) {
+                    console.error('Kartu tidak ditemukan di kartuKontrol');
+                    showToast('Kartu kontrol tidak ditemukan!');
+                    return;
+                }
+                console.log('✓ Kartu found:', kartu.noKartu);
+                
+                // Ambil nilai dari form
+                const wpId = document.getElementById('tambah-wp').value;
+                console.log('WP ID selected:', wpId);
+                
+                if (!wpId || wpId === '') {
+                    showToast('Pilih Wajib Pajak!');
+                    return;
+                }
+                
+                const wp = wajibPajak.find(w => w.id === wpId);
+                if (!wp) {
+                    console.error('Wajib Pajak tidak ditemukan');
+                    showToast('Wajib Pajak tidak ditemukan!');
+                    return;
+                }
+                console.log('✓ WP found:', wp.nama);
+                
+                const omzetM = parseFloat(document.getElementById('omzet-m').value) || 0;
+                const omzetN = parseFloat(document.getElementById('omzet-n').value) || 0;
+                const tarif = parseFloat(document.getElementById('tarif').value) || 10;
+                const status = document.getElementById('status').value;
+                const omzet = omzetM + omzetN;
+                const pajak = omzet * (tarif / 100);
+                const tglJanji = document.getElementById('tgl-janji').value || null;
+                const ket = document.getElementById('ket').value || '';
+                const noTelp = document.getElementById('no-telp').value || '';
+                
+                console.log('Data to save:');
+                console.log('- WP:', wp.nama);
+                console.log('- Omzet M:', omzetM);
+                console.log('- Omzet N:', omzetN);
+                console.log('- Total Omzet:', omzet);
+                console.log('- Tarif:', tarif);
+                console.log('- Pajak:', pajak);
+                console.log('- Status:', status);
+                console.log('- Tgl Janji:', tglJanji);
+                console.log('- Ket:', ket);
+                console.log('- No Telp:', noTelp);
+                
+                // Proses foto
+                const fotoInput = document.getElementById('foto');
+                
+                const processSave = (fotoData) => {
+                    // Buat object item
+                    const item = {
+                        id: Date.now().toString(),
+                        wpId: wpId,
+                        npwpd: wp.npwpd,
+                        wpNama: wp.nama,
+                        omzet: omzet,
+                        tarif: tarif,
+                        pajak: pajak,
+                        status: status,
+                        tglJanji: tglJanji,
+                        ket: ket,
+                        noTelp: noTelp,
+                        foto: fotoData,
+                        paraf: null,
+                        tglParaf: null
+                    };
+                    
+                    console.log('=== Saving item ===');
+                    console.log('Item object:', item);
+                    
+                    // Tambah item ke kartu
+                    kartu.items.push(item);
+                    console.log('✓ Item pushed to kartu.items. Total items:', kartu.items.length);
+                    
+                    // Simpan ke localStorage
+                    try {
+                        localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
+                        console.log('✓ Kartu saved to localStorage');
+                    } catch (err) {
+                        console.error('Error saving to localStorage:', err);
+                        showToast('Gagal menyimpan ke localStorage!');
+                        return;
+                    }
+                    
+                    // Update UI
+                    loadKartuKontrol();
+                    updateStats();
+                    updateTunggakanBadge();
+                    renderChart();
+                    
+                    // Tutup modal
+                    closeModal('tambah');
+                    
+                    // Show toast
+                    showToast('Data tersimpan!');
+                    console.log('=== handleTambahSubmit SUCCESS ===');
+                };
+                
+                if (fotoInput.files && fotoInput.files[0]) {
+                    console.log('Processing photo...');
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        console.log('Photo loaded, saving with photo...');
+                        processSave(e.target.result);
+                    };
+                    reader.onerror = function(e) {
+                        console.error('Error reading photo:', e);
+                        showToast('Error membaca foto!');
+                    };
+                    reader.readAsDataURL(fotoInput.files[0]);
+                } else {
+                    console.log('Saving without photo...');
+                    processSave(null);
+                }
+                
+            } catch (error) {
+                console.error('=== handleTambahSubmit ERROR ===');
+                console.error('Error:', error);
+                console.error('Error stack:', error.stack);
+                showToast('Error: ' + error.message);
             }
         }
 
@@ -2712,65 +2978,92 @@
 
         // ==================== FIREBASE ====================
         function loadFirebaseScripts() {
-            console.log('Loading Firebase scripts...');
+            console.log('=== Loading Firebase Scripts ===');
             updateSyncStatus('🟡', 'Memuat Firebase...', 'Menghubungkan ke database');
             
             // Load Firebase App
             const scriptApp = document.createElement('script');
             scriptApp.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js';
             scriptApp.onload = () => {
-                console.log('Firebase App loaded');
+                console.log('✓ Firebase App script loaded');
+                console.log('window.firebase available:', typeof window.firebase !== 'undefined');
                 
                 // Load Firebase Database
                 const scriptDB = document.createElement('script');
                 scriptDB.src = 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js';
                 scriptDB.onload = () => {
-                    console.log('Firebase Database loaded');
+                    console.log('✓ Firebase Database script loaded');
+                    console.log('window.firebase.database available:', typeof window.firebase.database !== 'undefined');
                     initFirebase();
                 };
                 scriptDB.onerror = () => {
-                    console.error('Failed to load Firebase Database');
+                    console.error('✗ Failed to load Firebase Database script');
                     updateSyncStatus('🔴', 'Gagal Memuat', 'Gagal memuat Firebase Database');
                 };
                 document.head.appendChild(scriptDB);
             };
             scriptApp.onerror = () => {
-                console.error('Failed to load Firebase App');
+                console.error('✗ Failed to load Firebase App script');
                 updateSyncStatus('🔴', 'Gagal Memuat', 'Gagal memuat Firebase App');
             };
             document.head.appendChild(scriptApp);
+            console.log('=== Firebase Scripts loading initiated ===');
         }
 
         function initFirebase() {
-            if (!firebaseConfig || !window.firebase) {
-                console.log('Firebase config or firebase object not available');
+            console.log('=== initFirebase START ===');
+            console.log('firebaseConfig:', firebaseConfig ? 'EXISTS' : 'NOT SET');
+            console.log('window.firebase:', typeof window.firebase !== 'undefined' ? 'AVAILABLE' : 'NOT AVAILABLE');
+            
+            if (!firebaseConfig) {
+                console.log('✗ Firebase config not available');
+                return;
+            }
+            
+            if (!window.firebase) {
+                console.log('✗ Firebase object not available');
                 return;
             }
 
             try {
-                console.log('Initializing Firebase with config:', firebaseConfig);
+                console.log('Initializing Firebase with config:', {
+                    projectId: firebaseConfig.projectId,
+                    databaseURL: firebaseConfig.databaseURL
+                });
+                
                 window.firebase.initializeApp(firebaseConfig);
                 db = window.firebase.database();
                 isConnected = true;
                 
+                console.log('✓ Firebase app initialized');
+                console.log('✓ Firebase database reference created');
+                console.log('✓ isConnected = true');
+                
                 updateSyncStatus('🟢', 'Terhubung ke Firebase', 'Data tersinkronisasi secara otomatis');
-                console.log('Firebase initialized successfully');
                 
                 loadSyncSettings();
                 
                 // Setup realtime sync with error handling
                 try {
+                    console.log('Setting up realtime sync listener...');
                     setupRealtimeSync();
+                    console.log('✓ Realtime sync listener setup complete');
                 } catch (syncErr) {
                     console.error('Error setting up realtime sync:', syncErr);
                     // Continue even if realtime sync fails
                 }
                 
                 if (autoSyncEnabled) {
+                    console.log('Auto-sync enabled, triggering manual sync in 1 second...');
                     setTimeout(() => manualSync(), 1000);
                 }
                 
+                console.log('=== initFirebase SUCCESS ===');
             } catch (err) {
+                console.error('=== initFirebase ERROR ===');
+                console.error('Error code:', err.code);
+                console.error('Error message:', err.message);
+                
                 if (err.code === 'app/duplicate-app') {
                     console.log('Firebase app already exists, reusing');
                     db = window.firebase.database();
@@ -2782,11 +3075,13 @@
                     } catch (syncErr) {
                         console.error('Error setting up realtime sync:', syncErr);
                     }
+                    console.log('=== initFirebase SUCCESS (using existing app) ===');
                 } else {
-                    console.error('Firebase init error:', err);
+                    console.error('Firebase init error');
                     updateSyncStatus('🔴', 'Koneksi Gagal', err.message);
                     // Don't block the app - continue with local storage
                     isConnected = false;
+                    console.log('=== initFirebase FAILED (continuing with local storage) ===');
                 }
             }
         }
@@ -2794,48 +3089,97 @@
         function setupRealtimeSync() {
             if (!db) return;
             
-            console.log('Setting up realtime sync...');
+            console.log('=== setupRealtimeSync START ===');
             
-            // Listen for data changes from Firebase
-            db.ref('/').on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (!data) return;
-                
-                console.log('Received data from Firebase');
-                
-                // Update wajibPajak
-                if (data.wajibPajak && JSON.stringify(data.wajibPajak) !== JSON.stringify(wajibPajak)) {
-                    wajibPajak = data.wajibPajak;
-                    localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak));
-                    renderWP();
+            try {
+                // Initialize arrays if needed
+                if (!Array.isArray(wajibPajak)) {
+                    console.warn('wajibPajak is not an array, initializing...');
+                    wajibPajak = [];
+                }
+                if (!Array.isArray(petugas)) {
+                    console.warn('petugas is not an array, initializing...');
+                    petugas = [];
+                }
+                if (!Array.isArray(kartuKontrol)) {
+                    console.warn('kartuKontrol is not an array, initializing...');
+                    kartuKontrol = [];
                 }
                 
-                // Update petugas
-                if (data.petugas && JSON.stringify(data.petugas) !== JSON.stringify(petugas)) {
-                    petugas = data.petugas;
-                    localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
-                    renderPetugas();
-                    updatePetugasInfo();
-                }
+                console.log('Setting up realtime value listener...');
                 
-                // Update kartuKontrol
-                if (data.kartuKontrol && JSON.stringify(data.kartuKontrol) !== JSON.stringify(kartuKontrol)) {
-                    kartuKontrol = data.kartuKontrol;
-                    localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
-                    updateStats();
-                    renderChart();
-                    updateTunggakanBadge();
-                    if (currentKartuId) loadKartuKontrol();
-                }
-                
-                // Update settings
-                if (data.settings) {
-                    settings = data.settings;
-                    localStorage.setItem('pbjt-settings', JSON.stringify(settings));
-                }
-                
-                updateLastSyncTime();
-            });
+                // Listen for data changes from Firebase
+                db.ref('/').on('value', (snapshot) => {
+                    try {
+                        const data = snapshot.val();
+                        if (!data) {
+                            console.log('No data from Firebase');
+                            return;
+                        }
+                        
+                        console.log('=== Reading data from Firebase (PUSH) ===');
+                        console.log('Data keys:', Object.keys(data));
+                        
+                        // Update wajibPajak - with safety check
+                        if (data.wajibPajak) {
+                            if (!Array.isArray(data.wajibPajak)) {
+                                console.error('wajibPajak from Firebase is not an array:', data.wajibPajak);
+                            } else if (JSON.stringify(data.wajibPajak) !== JSON.stringify(wajibPajak)) {
+                                wajibPajak = data.wajibPajak;
+                                localStorage.setItem('pbjt-wp', JSON.stringify(wajibPajak));
+                                renderWP();
+                                console.log('Wajib Pajak synced from Firebase');
+                            }
+                        }
+                        
+                        // Update petugas
+                        if (data.petugas && Array.isArray(data.petugas)) {
+                            if (JSON.stringify(data.petugas) !== JSON.stringify(petugas)) {
+                                petugas = data.petugas;
+                                localStorage.setItem('pbjt-petugas', JSON.stringify(petugas));
+                                renderPetugas();
+                                updatePetugasInfo();
+                                console.log('Petugas synced from Firebase');
+                            }
+                        }
+                        
+                        // Update kartuKontrol
+                        if (data.kartuKontrol && Array.isArray(data.kartuKontrol)) {
+                            if (JSON.stringify(data.kartuKontrol) !== JSON.stringify(kartuKontrol)) {
+                                kartuKontrol = data.kartuKontrol;
+                                localStorage.setItem('pbjt-kartu', JSON.stringify(kartuKontrol));
+                                updateStats();
+                                renderChart();
+                                updateTunggakanBadge();
+                                if (currentKartuId) loadKartuKontrol();
+                                console.log('Kartu Kontrol synced from Firebase');
+                            }
+                        }
+                        
+                        // Update settings
+                        if (data.settings && typeof data.settings === 'object') {
+                            if (JSON.stringify(data.settings) !== JSON.stringify(settings)) {
+                                settings = data.settings;
+                                localStorage.setItem('pbjt-settings', JSON.stringify(settings));
+                                console.log('Settings synced from Firebase');
+                            }
+                        }
+                        
+                        updateLastSyncTime();
+                        console.log('=== Firebase data read successfully ===');
+                    } catch (err) {
+                        console.error('Error processing data from Firebase:', err);
+                        console.error('Error stack:', err.stack);
+                    }
+                }, (error) => {
+                    console.error('=== Firebase realtime listener error ===');
+                    console.error('Error code:', error.code);
+                    console.error('Error message:', error.message);
+                    console.error('Error details:', error);
+                });
+            } catch (err) {
+                console.error('Error setting up realtime sync:', err);
+            }
         }
 
         function saveFirebaseConfig() {
@@ -2847,6 +3191,10 @@
                 showToast('Semua field harus diisi!');
                 return;
             }
+            
+            console.log('=== Saving Firebase Config ===');
+            console.log('Project ID:', projectId);
+            console.log('Database URL:', databaseURL);
             
             firebaseConfig = {
                 apiKey,
@@ -2860,10 +3208,22 @@
             
             updateSyncStatus('🟡', 'Menghubungkan...', 'Menyambungkan ke Firebase');
             
-            // Load Firebase scripts
-            loadFirebaseScripts();
-            
-            showToast('Konfigurasi disimpan!');
+            // Load Firebase scripts and reinitialize
+            try {
+                // If firebase app already exists, delete it to avoid conflicts
+                if (window.firebase && window.firebase.apps && window.firebase.apps.length > 0) {
+                    console.log('Deleting existing Firebase app...');
+                    window.firebase.apps.forEach(app => app.delete());
+                }
+                
+                // Load Firebase scripts
+                loadFirebaseScripts();
+                
+                showToast('Konfigurasi disimpan! Memuat Firebase...');
+            } catch (err) {
+                console.error('Error reinitializing Firebase:', err);
+                showToast('Konfigurasi disimpan, tapi gagal memuat Firebase.');
+            }
         }
 
         function loadFirebaseConfig() {
@@ -2992,11 +3352,13 @@
 
         function manualSync() {
             if (!isConnected || !db) {
+                console.log('=== manualSync: Firebase not connected ===');
                 showToast('Firebase belum terhubung!');
                 return;
             }
             
             if (syncInProgress) {
+                console.log('=== manualSync: Sync already in progress ===');
                 showToast('Sinkronisasi sedang berjalan...');
                 return;
             }
@@ -3006,28 +3368,52 @@
             
             const data = { wajibPajak, petugas, kartuKontrol, settings };
             
-            console.log('Starting manual sync...');
+            console.log('=== Starting PUSH to Firebase (SYNC) ===');
+            console.log('Data to push:', {
+                wajibPajak: wajibPajak.length + ' items',
+                petugas: petugas.length + ' items',
+                kartuKontrol: kartuKontrol.length + ' items',
+                settings: '1 object'
+            });
             
-            db.ref('/').set(data)
-                .then(() => {
-                    lastSyncTime = new Date().toISOString();
-                    localStorage.setItem('pbjt-last-sync', lastSyncTime);
-                    updateLastSyncTime();
-                    
-                    updateSyncStatus('🟢', 'Sinkronisasi Berhasil', `Terakhir: ${new Date(lastSyncTime).toLocaleTimeString('id-ID')}`);
-                    
-                    syncInProgress = false;
-                    showToast('Sinkronisasi berhasil! ✅');
-                    console.log('Manual sync completed at', lastSyncTime);
-                })
-                .catch(err => {
-                    syncInProgress = false;
-                    const msg = err.code === 'PERMISSION_DENIED' ? 'Izin ditolak - Cek database rules' : err.message;
-                    
-                    updateSyncStatus('🔴', 'Sinkronisasi Gagal', msg);
-                    showToast('Sinkronisasi gagal: ' + msg);
-                    console.error('Sync error:', err);
-                });
+            try {
+                // Cek apakah db.ref() bisa dipanggil
+                const ref = db.ref('/');
+                if (!ref) {
+                    throw new Error('Firebase reference is undefined');
+                }
+                
+                ref.set(data)
+                    .then(() => {
+                        lastSyncTime = new Date().toISOString();
+                        localStorage.setItem('pbjt-last-sync', lastSyncTime);
+                        updateLastSyncTime();
+                        
+                        updateSyncStatus('🟢', 'Sinkronisasi Berhasil', `Terakhir: ${new Date(lastSyncTime).toLocaleTimeString('id-ID')}`);
+                        
+                        syncInProgress = false;
+                        showToast('Sinkronisasi berhasil! ✅');
+                        console.log('=== Push to Firebase SUCCESS ===');
+                        console.log('Manual sync completed at', lastSyncTime);
+                    })
+                    .catch(err => {
+                        syncInProgress = false;
+                        const msg = err.code === 'PERMISSION_DENIED' ? 'Izin ditolak - Cek database rules' : err.message;
+                        
+                        updateSyncStatus('🔴', 'Sinkronisasi Gagal', msg);
+                        showToast('Sinkronisasi gagal: ' + msg);
+                        console.error('=== Push to Firebase FAILED ===');
+                        console.error('Error code:', err.code);
+                        console.error('Error message:', err.message);
+                        console.error('Error details:', err);
+                    });
+            } catch (error) {
+                syncInProgress = false;
+                console.error('=== manualSync ERROR ===');
+                console.error('Error:', error.message);
+                updateSyncStatus('🔴', 'Sinkronisasi Gagal', error.message);
+                showToast('Sinkronisasi gagal: ' + error.message);
+            }
         }
 
         function testConnection() {
@@ -3054,19 +3440,28 @@
         // Auto sync functions
         function autoSyncWP() {
             if (autoSyncEnabled && isConnected && db && !syncInProgress) {
-                db.ref('/wajibPajak').set(wajibPajak).catch(e => console.log('Sync WP error:', e));
+                console.log('Auto-sync: Pushing wajibPajak to Firebase...');
+                db.ref('/wajibPajak').set(wajibPajak)
+                    .then(() => console.log('Auto-sync wajibPajak SUCCESS'))
+                    .catch(e => console.log('Auto-sync wajibPajak FAILED:', e));
             }
         }
 
         function autoSyncPetugas() {
             if (autoSyncEnabled && isConnected && db && !syncInProgress) {
-                db.ref('/petugas').set(petugas).catch(e => console.log('Sync petugas error:', e));
+                console.log('Auto-sync: Pushing petugas to Firebase...');
+                db.ref('/petugas').set(petugas)
+                    .then(() => console.log('Auto-sync petugas SUCCESS'))
+                    .catch(e => console.log('Auto-sync petugas FAILED:', e));
             }
         }
 
         function autoSyncKartu() {
             if (autoSyncEnabled && isConnected && db && !syncInProgress) {
-                db.ref('/kartuKontrol').set(kartuKontrol).catch(e => console.log('Sync kartu error:', e));
+                console.log('Auto-sync: Pushing kartuKontrol to Firebase...');
+                db.ref('/kartuKontrol').set(kartuKontrol)
+                    .then(() => console.log('Auto-sync kartuKontrol SUCCESS'))
+                    .catch(e => console.log('Auto-sync kartuKontrol FAILED:', e));
             }
         }
 
