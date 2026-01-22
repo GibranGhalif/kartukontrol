@@ -1,19 +1,1 @@
-/* Table styles */
-.app-table {
-  width: 100%;
-  border-collapse: collapse;
-  border-spacing: 0;
-}
-.app-table th,
-.app-table td {
-  padding: 0.5rem;
-  border: 1px solid #e5e7eb; /* gray-200 */
-  text-align: left;
-}
 
-/* Media element helpers (replaces inline styles like display:none; max-width:100%) */
-.media-hidden { display: none; }
-.media-max { max-width: 100%; }
-
-/* Utility to reveal elements (used by JS) */
-.is-visible { display: block !important; }
